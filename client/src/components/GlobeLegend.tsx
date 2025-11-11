@@ -100,7 +100,7 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
             onClick={() => onNormalizationChange('linear')}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               normalization === 'linear'
-                ? 'bg-blue-600 text-white shadow-lg'
+                ? 'bg-red-600 text-white shadow-lg'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
             }`}
           >
@@ -110,7 +110,7 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
             onClick={() => onNormalizationChange('log')}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               normalization === 'log'
-                ? 'bg-blue-600 text-white shadow-lg'
+                ? 'bg-red-600 text-white shadow-lg'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
             }`}
           >

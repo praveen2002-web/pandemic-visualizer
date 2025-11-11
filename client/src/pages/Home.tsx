@@ -17,6 +17,8 @@ export default function Home() {
   const [normalization, setNormalization] = useState<NormalizationType>('log');
   const [minValue, setMinValue] = useState(0);
   const [maxValue, setMaxValue] = useState(1);
+
+  const pandemicName = "Corona";
   
   const isLoading = useAppSelector(selectLoading);
   const error = useAppSelector(selectError);
@@ -28,9 +30,9 @@ export default function Home() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Globe className="w-8 h-8 text-blue-400" />
+              <img src="/logo.png" alt="logo" className='w-[50px] h-[50px]'/>
               <div>
-                <h1 className="text-2xl font-bold text-white">COVID-19 Global Visualizer</h1>
+                <h1 className="text-2xl font-bold text-white">Pandemic Visualizer - {pandemicName}</h1>
                 <p className="text-xs text-slate-400">Real-time interactive 3D globe with live statistics</p>
               </div>
             </div>
@@ -41,7 +43,7 @@ export default function Home() {
                 onClick={() => setViewMode('globe')}
                 className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 ${
                   viewMode === 'globe'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-red-600 text-white'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -52,7 +54,7 @@ export default function Home() {
                 onClick={() => setViewMode('list')}
                 className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 ${
                   viewMode === 'list'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-red-600 text-white'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -106,7 +108,7 @@ export default function Home() {
             </div>
 
             {/* Globe View */}
-            <div className="lg:col-span-3 rounded-lg overflow-hidden border border-slate-700/50 shadow-2xl">
+            <div className="lg:col-span-3 rounded-lg overflow-hidden border border-slate-700/50 shadow-2xl min-h-[70vh]">
               <GlobeView metric={metric} normalization={normalization} />
             </div>
           </div>
@@ -121,7 +123,7 @@ export default function Home() {
       <CountryDetailModal />
 
       {/* Footer */}
-      <footer className="border-t border-slate-700/50 bg-slate-900/50 backdrop-blur mt-12">
+      <footer className="border-t border-slate-700/50 bg-slate-900/50 backdrop-blur mt-60">
         <div className="container mx-auto px-4 py-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
             <div>
@@ -150,15 +152,7 @@ export default function Home() {
               </ul>
             </div>
 
-            <div>
-              <h3 className="font-semibold text-white mb-2">Features</h3>
-              <ul className="text-sm text-slate-400 space-y-1">
-                <li>3D Interactive Globe</li>
-                <li>Real-time Statistics</li>
-                <li>Trend Charts</li>
-                <li>Country Comparison</li>
-              </ul>
-            </div>
+           
 
             <div>
               <h3 className="font-semibold text-white mb-2">Information</h3>
@@ -170,7 +164,7 @@ export default function Home() {
           </div>
 
           <div className="border-t border-slate-700/50 pt-6 text-center text-sm text-slate-500">
-            <p>© 2025 COVID-19 Global Visualizer. Built with globe.gl, Redux, and Tailwind CSS.</p>
+            <p>© 2025 COVID-19 Pandemic Visualizer</p>
           </div>
         </div>
       </footer>

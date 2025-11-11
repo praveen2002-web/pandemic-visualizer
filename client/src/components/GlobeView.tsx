@@ -221,7 +221,7 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
 
   if (error) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-slate-900 text-red-400">
+      <div className="w-full h-[70vh] flex items-center justify-center bg-slate-900 text-red-400">
         <div className="text-center">
           <p className="font-semibold mb-2">Error Loading Globe</p>
           <p className="text-sm text-slate-400">{error}</p>
@@ -233,7 +233,7 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full"
+      className="w-full h-[70vh]"
       style={{
         background: 'radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%)',
       }}

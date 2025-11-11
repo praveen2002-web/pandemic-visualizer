@@ -43,15 +43,16 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
+  /* Primary theme colors switched to dark red */
+  --primary: #7f1d1d; /* dark red */
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #b91c1c;
+  --sidebar-primary-foreground: #ffffff;
+  --chart-1: #fecaca; /* red-200 */
+  --chart-2: #f87171; /* red-400 */
+  --chart-3: #ef4444; /* red-500 */
+  --chart-4: #b91c1c; /* red-700 */
+  --chart-5: #7f1d1d; /* red-800 */
   --radius: 0.65rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.235 0.015 65);
@@ -79,10 +80,11 @@
 }
 
 .dark {
-  --primary: var(--color-blue-500);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
+  /* Dark theme: primary to lighter red for contrast */
+  --primary: #ef4444; /* red-500 */
+  --primary-foreground: #ffffff;
+  --sidebar-primary: #ef4444;
+  --sidebar-primary-foreground: #ffffff;
   --background: oklch(0.08 0.002 280);
   --foreground: oklch(0.95 0.002 280);
   --card: oklch(0.12 0.003 280);
@@ -93,24 +95,24 @@
   --secondary-foreground: oklch(0.85 0.002 280);
   --muted: oklch(0.18 0.004 280);
   --muted-foreground: oklch(0.65 0.005 280);
-  --accent: oklch(0.55 0.15 260);
+  --accent: oklch(55.958% 0.17957 23.35);
   --accent-foreground: oklch(0.95 0.002 280);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.55 0.15 260);
-  --chart-1: var(--color-blue-400);
-  --chart-2: var(--color-cyan-400);
-  --chart-3: var(--color-purple-400);
-  --chart-4: var(--color-pink-400);
-  --chart-5: var(--color-violet-400);
+  --chart-1: #fca5a5; /* red-300 */
+  --chart-2: #fb7185; /* rose-400 */
+  --chart-3: #f87171; /* red-400 */
+  --chart-4: #ef4444; /* red-500 */
+  --chart-5: #b91c1c; /* red-700 */
   --sidebar: oklch(0.12 0.003 280);
   --sidebar-foreground: oklch(0.92 0.002 280);
-  --sidebar-accent: oklch(0.55 0.15 260);
+  --sidebar-accent: oklch(55.883% 0.18013 25.157);
   --sidebar-accent-foreground: oklch(0.95 0.002 280);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.55 0.15 260);
+  --sidebar-ring: oklch(56.11% 0.17889 19.843);
 }
 
 @layer base {
@@ -162,7 +164,7 @@
 
   /* Neon glow effects for COVID visualizer */
   .glow-blue {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), inset 0 0 20px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 20px rgba(246, 59, 103, 0.5), inset 0 0 20px rgba(246, 59, 72, 0.1);
   }
 
   .glow-red {

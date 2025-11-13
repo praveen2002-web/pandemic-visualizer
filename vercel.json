@@ -1,13 +1,7 @@
 {
-  "buildCommand": "pnpm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
-  "devCommand": "pnpm run dev",
-  "env": {
-    "VITE_APP_LOGO": "@VITE_APP_LOGO",
-    "VITE_APP_TITLE": "@VITE_APP_TITLE",
-    "VITE_ANALYTICS_ENDPOINT": "@VITE_ANALYTICS_ENDPOINT",
-    "VITE_ANALYTICS_WEBSITE_ID": "@VITE_ANALYTICS_WEBSITE_ID"
-  },
+  "devCommand": "npm run dev",
   "rewrites": [
     {
       "source": "/(.*)",

@@ -163,9 +163,13 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="border-t border-slate-700/50 pt-6 text-center text-sm text-slate-500">
-            <p>© 2025 COVID-19 Pandemic Visualizer</p>
-          </div>
+         <div className="border-t border-slate-700/50 pt-6 text-sm text-slate-500 flex flex-row justify-between items-center">
+  <p>© 2025 COVID-19 Pandemic Visualizer</p>
+  <p>
+    Design by <a href="https://webasi.co/" className="text-slate-400 hover:text-white">WEBASI</a>
+  </p>
+</div>
+
         </div>
       </footer>
     </div>

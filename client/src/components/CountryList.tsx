@@ -1,16 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
-import { selectCountriesList } from '../store/selectors';
-import { setSelectedCountry } from '../store/covidSlice';
+import { selectActiveCountriesList } from '@/store/pandemicSelectors';
+import { setSelectedCountry } from '@/store/pandemicSlice';
 import { formatNumber, formatPercentage } from '../utils/colorUtils';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
-type SortKey = 'name' | 'cases' | 'deaths' | 'recovered' | 'active' | 'vaccinationPercentage';
+type SortKey = 'country' | 'cases' | 'deaths' | 'recovered' | 'active' | 'fatalityRate' | 'vaccinationPercentage';
 type SortOrder = 'asc' | 'desc';
 
 export const CountryList: React.FC = () => {
   const dispatch = useAppDispatch();
-  const countries = useAppSelector(selectCountriesList);
+  const countries = useAppSelector(selectActiveCountriesList);
   const [sortKey, setSortKey] = useState<SortKey>('cases');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,15 +21,15 @@ export const CountryList: React.FC = () => {
     // Filter by search term
     if (searchTerm) {
       sorted = sorted.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.code.toLowerCase().includes(searchTerm.toLowerCase())
+        c.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.countryCode.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Sort
     sorted.sort((a, b) => {
-      let aVal: any = sortKey === 'vaccinationPercentage' ? a.vaccinationPercentage : (a as any)[sortKey];
-      let bVal: any = sortKey === 'vaccinationPercentage' ? b.vaccinationPercentage : (b as any)[sortKey];
+      let aVal: any = (a as any)[sortKey];
+      let bVal: any = (b as any)[sortKey];
 
       if (typeof aVal === 'string') {
         aVal = aVal.toLowerCase();
@@ -66,12 +66,12 @@ export const CountryList: React.FC = () => {
 
   return (
     <div className="bg-slate-900/50 backdrop-blur border border-slate-700 rounded-lg p-6 h-full flex flex-col">
-      <h2 className="text-2xl font-bold text-white mb-4">Countries List</h2>
+      <h2 className="text-2xl font-bold text-white mb-4">Locations List</h2>
 
       {/* Search */}
       <input
         type="text"
-        placeholder="Search countries..."
+        placeholder="Search locations..."
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
         className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 mb-4 focus:outline-none focus:border-blue-500"
@@ -84,11 +84,11 @@ export const CountryList: React.FC = () => {
             <tr className="border-b border-slate-700">
               <th className="px-4 py-3 text-left">
                 <button
-                  onClick={() => handleSort('name')}
+                  onClick={() => handleSort('country')}
                   className="flex items-center gap-2 hover:text-blue-400 transition-colors"
                 >
-                  Country
-                  <SortIcon column="name" />
+                  Location
+                  <SortIcon column="country" />
                 </button>
               </th>
               <th className="px-4 py-3 text-right">
@@ -109,61 +109,36 @@ export const CountryList: React.FC = () => {
                   <SortIcon column="deaths" />
                 </button>
               </th>
-              <th className="px-4 py-3 text-right">
-                <button
-                  onClick={() => handleSort('recovered')}
-                  className="flex items-center justify-end gap-2 w-full hover:text-blue-400 transition-colors"
-                >
-                  Recovered
-                  <SortIcon column="recovered" />
-                </button>
-              </th>
-              <th className="px-4 py-3 text-right">
-                <button
-                  onClick={() => handleSort('active')}
-                  className="flex items-center justify-end gap-2 w-full hover:text-blue-400 transition-colors"
-                >
-                  Active
-                  <SortIcon column="active" />
-                </button>
-              </th>
-              <th className="px-4 py-3 text-right">
-                <button
-                  onClick={() => handleSort('vaccinationPercentage')}
-                  className="flex items-center justify-end gap-2 w-full hover:text-blue-400 transition-colors"
-                >
-                  Vaccination
-                  <SortIcon column="vaccinationPercentage" />
-                </button>
-              </th>
+              {countries.some(c => c.fatalityRate !== undefined) && (
+                <th className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => handleSort('fatalityRate')}
+                    className="flex items-center justify-end gap-2 w-full hover:text-blue-400 transition-colors"
+                  >
+                    Fatality Rate
+                    <SortIcon column="fatalityRate" />
+                  </button>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {sortedCountries.map(country => (
+            {sortedCountries.map(location => (
               <tr
-                key={country.code}
-                onClick={() => dispatch(setSelectedCountry(country.code))}
+                key={location.countryCode}
+                onClick={() => dispatch(setSelectedCountry(location.countryCode))}
                 className="border-b border-slate-700/50 hover:bg-slate-800/50 cursor-pointer transition-colors"
               >
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {country.flag && (
-                      <img
-                        src={country.flag}
-                        alt={country.name}
-                        className="w-6 h-4 rounded object-cover"
-                      />
-                    )}
-                    <span className="font-medium text-white">{country.name}</span>
-                  </div>
+                  <span className="font-medium text-white">{location.country}</span>
                 </td>
-                <td className="px-4 py-3 text-right text-blue-400">{formatNumber(country.cases)}</td>
-                <td className="px-4 py-3 text-right text-red-400">{formatNumber(country.deaths)}</td>
-                <td className="px-4 py-3 text-right text-green-400">{formatNumber(country.recovered)}</td>
-                <td className="px-4 py-3 text-right text-yellow-400">{formatNumber(country.active)}</td>
-                <td className="px-4 py-3 text-right text-purple-400">
-                  {formatPercentage(country.vaccinationPercentage)}
-                </td>
+                <td className="px-4 py-3 text-right text-blue-400">{formatNumber(location.cases)}</td>
+                <td className="px-4 py-3 text-right text-red-400">{formatNumber(location.deaths)}</td>
+                {location.fatalityRate !== undefined && (
+                  <td className="px-4 py-3 text-right text-amber-400">
+                    {location.fatalityRate.toFixed(1)}%
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -172,7 +147,7 @@ export const CountryList: React.FC = () => {
 
       {sortedCountries.length === 0 && (
         <div className="flex items-center justify-center py-8 text-slate-400">
-          No countries found
+          No locations found
         </div>
       )}
     </div>

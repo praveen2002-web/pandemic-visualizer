@@ -57,6 +57,7 @@ const covidSlice = createSlice({
     },
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
+      state.loading = false;
     },
     setGlobalStats: (state, action: PayloadAction<GlobalStats>) => {
       state.global = action.payload;

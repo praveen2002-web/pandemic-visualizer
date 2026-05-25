@@ -1,8 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
-import { selectAllCountries, selectSelectedCountryCode } from '../store/selectors';
-import { setSelectedCountry } from '../store/covidSlice';
-import { getMetricColor, calculateCasesPer100k, NormalizationType, MetricType } from '../utils/colorUtils';
+import {
+  selectActiveCountries,
+  selectSelectedCountryCode,
+} from '@/store/pandemicSelectors';
+import { setSelectedCountry } from '@/store/pandemicSlice';
+import {
+  getPandemicConfig,
+  getColorScaleEndpoints,
+  MetricType,
+  NormalizationType,
+} from '@/config/pandemicConfig';
+import type { PandemicType } from '@/types/pandemic';
 
 interface CountryMetrics {
   [code: string]: number;
@@ -11,17 +20,99 @@ interface CountryMetrics {
 export interface GlobeViewProps {
   metric?: MetricType;
   normalization?: NormalizationType;
+  pandemic: PandemicType;
 }
 
-export const GlobeView: React.FC<GlobeViewProps> = ({ 
-  metric = 'casesPerMillion', 
-  normalization = 'log' 
+/**
+ * Get the metric value from country data based on metric type
+ */
+function getMetricValue(
+  country: any,
+  metric: MetricType
+): number {
+  if (!country) return 0;
+  
+  switch (metric) {
+    case 'cases':
+      return country.cases ?? 0;
+    case 'deaths':
+      return country.deaths ?? 0;
+    case 'recovered':
+      return country.recovered ?? 0;
+    case 'active':
+      return country.active ?? 0;
+    case 'casesPerMillion':
+      return country.casesPerMillion ?? 0;
+    case 'deathsPerMillion':
+      return country.deathsPerMillion ?? 0;
+    case 'vaccinationPercentage':
+      return country.vaccinationPercentage ?? 0;
+    case 'fatalityRate':
+      return country.fatalityRate ?? 0;
+    case 'testsPerMillion':
+      return country.testsPerMillion ?? 0;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Normalize value using linear or logarithmic scale
+ */
+function normalizeValue(
+  value: number,
+  min: number,
+  max: number,
+  normalization: NormalizationType
+): number {
+  if (max === min) return 0.5;
+  
+  if (normalization === 'log') {
+    const logMin = Math.log(Math.max(min, 0.1));
+    const logMax = Math.log(Math.max(max, 1));
+    const logValue = Math.log(Math.max(value, 0.1));
+    return Math.max(0, Math.min(1, (logValue - logMin) / (logMax - logMin)));
+  }
+  
+  // Linear
+  return Math.max(0, Math.min(1, (value - min) / (max - min)));
+}
+
+/**
+ * Get RGB color between two endpoints
+ */
+function interpolateColor(
+  normalized: number,
+  darkRgb: [number, number, number],
+  lightRgb: [number, number, number]
+): string {
+  const r = Math.round(darkRgb[0] + (lightRgb[0] - darkRgb[0]) * normalized);
+  const g = Math.round(darkRgb[1] + (lightRgb[1] - darkRgb[1]) * normalized);
+  const b = Math.round(darkRgb[2] + (lightRgb[2] - darkRgb[2]) * normalized);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
+ * Parse hex color to RGB
+ */
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+    : [0, 0, 0];
+}
+
+export const GlobeView: React.FC<GlobeViewProps> = ({
+  metric = 'cases',
+  normalization = 'log',
+  pandemic,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<any>(null);
+  const resizeListenerRef = useRef<(() => void) | null>(null);
   const dispatch = useAppDispatch();
-  
-  const countries = useAppSelector(selectAllCountries);
+
+  const countries = useAppSelector(selectActiveCountries);
   const selectedCountry = useAppSelector(selectSelectedCountryCode);
 
   const [metrics, setMetrics] = useState<CountryMetrics>({});
@@ -29,7 +120,12 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   const [maxMetric, setMaxMetric] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
-  const geoJsonUrl = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+  const geoJsonUrl =
+    'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+  const config = getPandemicConfig(pandemic);
+  const { dark, light } = getColorScaleEndpoints(pandemic);
+  const darkRgb = hexToRgb(dark);
+  const lightRgb = hexToRgb(light);
 
   // Calculate metrics for all countries
   useEffect(() => {
@@ -38,19 +134,9 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
     let max = -Infinity;
 
     Object.entries(countries).forEach(([code, country]) => {
-      let value = 0;
-
-      if (metric === 'casesPerMillion') {
-        value = country.casesPerMillion || 0;
-      } else if (metric === 'cases') {
-        value = calculateCasesPer100k(country.cases || 0, country.population || 1);
-      } else if (metric === 'deathsPerMillion') {
-        value = country.deathsPerMillion || 0;
-      } else if (metric === 'deaths') {
-        value = calculateCasesPer100k(country.deaths || 0, country.population || 1);
-      }
-
+      const value = getMetricValue(country, metric);
       newMetrics[code] = value;
+
       if (value > 0) {
         min = Math.min(min, value);
         max = Math.max(max, value);
@@ -77,12 +163,14 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
         const response = await fetch(geoJsonUrl, {
           mode: 'cors',
           headers: {
-            'Accept': 'application/json',
+            Accept: 'application/json',
           },
         });
+
         if (!response.ok) {
           throw new Error(`Failed to fetch GeoJSON: ${response.statusText}`);
         }
+
         const geoData = await response.json();
 
         if (!containerRef.current) return;
@@ -93,9 +181,15 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
 
         // Set globe properties
         globe
-          .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-          .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-          .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+          .globeImageUrl(
+            '//unpkg.com/three-globe/example/img/earth-night.jpg'
+          )
+          .bumpImageUrl(
+            '//unpkg.com/three-globe/example/img/earth-topology.png'
+          )
+          .backgroundImageUrl(
+            '//unpkg.com/three-globe/example/img/night-sky.png'
+          )
           .width(containerRef.current.clientWidth)
           .height(containerRef.current.clientHeight);
 
@@ -115,8 +209,14 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
         // Set polygon colors
         globe.polygonCapColor((d: any) => {
           const code = d.properties?.code;
-          const value = metrics[code] || 0;
-          return getMetricColor(value, minMetric, maxMetric, normalization);
+          const value = metrics[code] ?? 0;
+          const normalized = normalizeValue(
+            value,
+            minMetric,
+            maxMetric,
+            normalization
+          );
+          return interpolateColor(normalized, darkRgb, lightRgb);
         });
 
         globe.polygonSideColor(() => 'rgba(0, 0, 0, 0.3)');
@@ -132,11 +232,17 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
           const code = d.properties?.code;
           const country = countries[code];
           if (!country) return d.properties?.name || 'Unknown';
+
+          const metric1 = metric === 'fatalityRate' ? 'Fatality Rate' : 'Cases';
+          const metric1Value =
+            metric === 'fatalityRate'
+              ? (country.fatalityRate ?? 0).toFixed(1) + '%'
+              : (country.cases ?? 0).toLocaleString();
+
           return `<div class="text-sm">
-            <div class="font-bold">${country.name}</div>
-            <div>Cases: ${(country.cases || 0).toLocaleString()}</div>
-            <div>Deaths: ${(country.deaths || 0).toLocaleString()}</div>
-            <div>Active: ${(country.active || 0).toLocaleString()}</div>
+            <div class="font-bold">${country.country}</div>
+            <div>${metric1}: ${metric1Value}</div>
+            <div>Deaths: ${(country.deaths ?? 0).toLocaleString()}</div>
           </div>`;
         });
 
@@ -176,19 +282,31 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
         };
 
         window.addEventListener('resize', handleResize);
+        resizeListenerRef.current = handleResize;
 
-        // Note: resize listener cleanup is handled in main useEffect cleanup
+        return () => {
+          window.removeEventListener('resize', handleResize);
+        };
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         console.error('Globe initialization error:', errorMsg);
         setError(`Failed to load globe: ${errorMsg}`);
+        return () => {}; // Return empty cleanup if error
       }
     };
 
-    initGlobe();
+    const cleanupPromise = initGlobe();
 
     return () => {
-      // Cleanup
+      cleanupPromise.then(cleanup => cleanup?.());
+
+      // Remove resize listener if it was set
+      if (resizeListenerRef.current) {
+        window.removeEventListener('resize', resizeListenerRef.current);
+        resizeListenerRef.current = null;
+      }
+
+      // Cleanup globe instance
       if (globeRef.current) {
         try {
           globeRef.current = null;
@@ -197,18 +315,24 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
         }
       }
     };
-  }, [dispatch, countries]);
+  }, [dispatch, countries, pandemic]);
 
   // Update colors when metrics change
   useEffect(() => {
     if (globeRef.current) {
       globeRef.current.polygonCapColor((d: any) => {
         const code = d.properties?.code;
-        const value = metrics[code] || 0;
-        return getMetricColor(value, minMetric, maxMetric, normalization);
+        const value = metrics[code] ?? 0;
+        const normalized = normalizeValue(
+          value,
+          minMetric,
+          maxMetric,
+          normalization
+        );
+        return interpolateColor(normalized, darkRgb, lightRgb);
       });
     }
-  }, [metrics, minMetric, maxMetric, normalization]);
+  }, [metrics, minMetric, maxMetric, normalization, darkRgb, lightRgb]);
 
   // Update altitude when selected country changes
   useEffect(() => {
@@ -248,15 +372,20 @@ function getPolygonCentroid(geometry: any): [number, number] {
   try {
     if (geometry?.type === 'Polygon' && geometry.coordinates?.[0]) {
       const coords = geometry.coordinates[0];
-      let lat = 0, lng = 0;
+      let lat = 0,
+        lng = 0;
       for (const coord of coords) {
         lng += coord[0];
         lat += coord[1];
       }
       return [lng / coords.length, lat / coords.length];
-    } else if (geometry?.type === 'MultiPolygon' && geometry.coordinates?.[0]?.[0]) {
+    } else if (
+      geometry?.type === 'MultiPolygon' &&
+      geometry.coordinates?.[0]?.[0]
+    ) {
       const coords = geometry.coordinates[0][0];
-      let lat = 0, lng = 0;
+      let lat = 0,
+        lng = 0;
       for (const coord of coords) {
         lng += coord[0];
         lat += coord[1];

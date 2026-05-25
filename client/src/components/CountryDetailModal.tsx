@@ -1,39 +1,33 @@
 import React from 'react';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
-import { selectSelectedCountryData } from '../store/selectors';
-import { setSelectedCountry } from '../store/covidSlice';
+import { selectSelectedCountryData } from '@/store/pandemicSelectors';
+import { setSelectedCountry } from '@/store/pandemicSlice';
 import { formatNumber, formatPercentage } from '../utils/colorUtils';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { X, TrendingUp, Users, Skull, Heart, Syringe, Activity } from 'lucide-react';
 
 export const CountryDetailModal: React.FC = () => {
   const dispatch = useAppDispatch();
-  const country = useAppSelector(selectSelectedCountryData);
+  const location = useAppSelector(selectSelectedCountryData);
 
-  if (!country) return null;
+  if (!location) return null;
 
   // Prepare chart data with safe defaults
-  const trendData = (country.dates || []).map((date, index) => ({
+  const trendData = (location.dates || []).map((date, index) => ({
     date: date || '',
-    cases: (country.dailyCases?.[index] || 0) as number,
-    deaths: (country.dailyDeaths?.[index] || 0) as number,
+    cases: (location.dailyCases?.[index] || 0) as number,
+    deaths: (location.dailyDeaths?.[index] || 0) as number,
   })).filter(d => d.date); // Filter out empty dates
 
   // Safe property access with defaults
-  const safeCountry = {
-    name: country.name || 'Unknown Country',
-    code: country.code || 'N/A',
-    flag: country.flag || '',
-    cases: country.cases ?? 0,
-    deaths: country.deaths ?? 0,
-    recovered: country.recovered ?? 0,
-    active: country.active ?? 0,
-    tests: country.tests ?? 0,
-    casesPerMillion: country.casesPerMillion ?? 0,
-    deathsPerMillion: country.deathsPerMillion ?? 0,
-    testsPerMillion: country.testsPerMillion ?? 0,
-    vaccinationPercentage: country.vaccinationPercentage ?? 0,
-    population: country.population ?? 0,
+  const safeLocation = {
+    country: location.country || 'Unknown Location',
+    countryCode: location.countryCode || 'N/A',
+    cases: location.cases ?? 0,
+    deaths: location.deaths ?? 0,
+    recovered: location.recovered ?? 0,
+    active: location.active ?? 0,
+    fatalityRate: location.fatalityRate ?? 0,
   };
 
   const handleClose = () => {
@@ -54,21 +48,9 @@ export const CountryDetailModal: React.FC = () => {
       <div className="bg-slate-900 border border-slate-700 rounded-lg max-w-4xl w-full my-8 shadow-2xl">
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-slate-900 to-slate-800 border-b border-slate-700 px-6 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {safeCountry.flag && (
-              <img
-                src={safeCountry.flag}
-                alt={safeCountry.name}
-                className="w-16 h-10 rounded object-cover shadow-lg"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            )}
-            <div>
-              <h2 className="text-4xl font-bold text-white">{safeCountry.name}</h2>
-              <p className="text-sm text-slate-400 mt-1">{safeCountry.code}</p>
-            </div>
+          <div>
+            <h2 className="text-4xl font-bold text-white">{safeLocation.country}</h2>
+            <p className="text-sm text-slate-400 mt-1">{safeLocation.countryCode}</p>
           </div>
           <button
             onClick={handleClose}
@@ -93,8 +75,7 @@ export const CountryDetailModal: React.FC = () => {
                   <Activity className="w-3 h-3" />
                   Total Cases
                 </p>
-                <p className="text-2xl font-bold text-blue-400">{formatNumber(safeCountry.cases)}</p>
-                <p className="text-xs text-slate-500 mt-2">{formatNumber(safeCountry.casesPerMillion)} per million</p>
+                <p className="text-2xl font-bold text-blue-400">{formatNumber(safeLocation.cases)}</p>
               </div>
 
               {/* Deaths */}
@@ -103,53 +84,41 @@ export const CountryDetailModal: React.FC = () => {
                   <Skull className="w-3 h-3" />
                   Deaths
                 </p>
-                <p className="text-2xl font-bold text-red-400">{formatNumber(safeCountry.deaths)}</p>
-                <p className="text-xs text-slate-500 mt-2">{formatNumber(safeCountry.deathsPerMillion)} per million</p>
+                <p className="text-2xl font-bold text-red-400">{formatNumber(safeLocation.deaths)}</p>
               </div>
+
+              {/* Fatality Rate */}
+              {safeLocation.fatalityRate > 0 && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 hover:bg-amber-500/15 transition-colors">
+                  <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    Fatality Rate
+                  </p>
+                  <p className="text-2xl font-bold text-amber-400">{safeLocation.fatalityRate.toFixed(1)}%</p>
+                </div>
+              )}
 
               {/* Recovered */}
-              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 hover:bg-green-500/15 transition-colors">
-                <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
-                  <Heart className="w-3 h-3" />
-                  Recovered
-                </p>
-                <p className="text-2xl font-bold text-green-400">{formatNumber(safeCountry.recovered)}</p>
-                <p className="text-xs text-slate-500 mt-2">
-                  {safeCountry.cases > 0 ? formatPercentage((safeCountry.recovered / safeCountry.cases) * 100) : '0%'} of cases
-                </p>
-              </div>
+              {safeLocation.recovered > 0 && (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 hover:bg-green-500/15 transition-colors">
+                  <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+                    <Heart className="w-3 h-3" />
+                    Recovered
+                  </p>
+                  <p className="text-2xl font-bold text-green-400">{formatNumber(safeLocation.recovered)}</p>
+                </div>
+              )}
 
               {/* Active Cases */}
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 hover:bg-yellow-500/15 transition-colors">
-                <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3" />
-                  Active Cases
-                </p>
-                <p className="text-2xl font-bold text-yellow-400">{formatNumber(safeCountry.active)}</p>
-                <p className="text-xs text-slate-500 mt-2">
-                  {safeCountry.cases > 0 ? formatPercentage((safeCountry.active / safeCountry.cases) * 100) : '0%'} of cases
-                </p>
-              </div>
-
-              {/* Tests */}
-              <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 hover:bg-purple-500/15 transition-colors">
-                <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
-                  <Activity className="w-3 h-3" />
-                  Tests
-                </p>
-                <p className="text-2xl font-bold text-purple-400">{formatNumber(safeCountry.tests)}</p>
-                <p className="text-xs text-slate-500 mt-2">{formatNumber(safeCountry.testsPerMillion)} per million</p>
-              </div>
-
-              {/* Vaccination */}
-              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 hover:bg-cyan-500/15 transition-colors">
-                <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
-                  <Syringe className="w-3 h-3" />
-                  Vaccination Rate
-                </p>
-                <p className="text-2xl font-bold text-cyan-400">{formatPercentage(safeCountry.vaccinationPercentage)}</p>
-                <p className="text-xs text-slate-500 mt-2">Population: {formatNumber(safeCountry.population)}</p>
-              </div>
+              {safeLocation.active > 0 && (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 hover:bg-yellow-500/15 transition-colors">
+                  <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    Active Cases
+                  </p>
+                  <p className="text-2xl font-bold text-yellow-400">{formatNumber(safeLocation.active)}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -160,7 +129,7 @@ export const CountryDetailModal: React.FC = () => {
               <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4" />
-                  Daily Cases (Last 30 Days)
+                  Daily Cases
                 </h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={trendData}>
@@ -195,7 +164,7 @@ export const CountryDetailModal: React.FC = () => {
               <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
                   <Skull className="w-4 h-4" />
-                  Daily Deaths (Last 30 Days)
+                  Daily Deaths
                 </h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={trendData}>
@@ -224,7 +193,7 @@ export const CountryDetailModal: React.FC = () => {
           {/* No data message */}
           {trendData.length === 0 && (
             <div className="px-6 py-12 text-center">
-              <p className="text-slate-400">No historical trend data available for this country.</p>
+              <p className="text-slate-400">No historical trend data available for this location.</p>
             </div>
           )}
         </div>
@@ -232,7 +201,7 @@ export const CountryDetailModal: React.FC = () => {
         {/* Footer */}
         <div className="sticky bottom-0 bg-slate-800/50 border-t border-slate-700 px-6 py-4 flex items-center justify-between">
           <p className="text-xs text-slate-500">
-            Data sources: Worldometer, Our World in Data
+            Pandemic Visualizer
           </p>
           <button
             onClick={handleClose}

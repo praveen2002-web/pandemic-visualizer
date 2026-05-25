@@ -1,6 +1,7 @@
 import React from 'react';
-import { MetricType, NormalizationType, getColorScaleEndpoints, getMetricLabel } from '../utils/colorUtils';
+import { getColorScaleEndpoints, getMetricLabel, MetricType, NormalizationType, getPandemicConfig } from '@/config/pandemicConfig';
 import { ChevronDown, Info } from 'lucide-react';
+import type { PandemicType } from '@/types/pandemic';
 
 interface GlobeLegendProps {
   metric: MetricType;
@@ -9,6 +10,7 @@ interface GlobeLegendProps {
   onNormalizationChange: (normalization: NormalizationType) => void;
   minValue: number;
   maxValue: number;
+  pandemic: PandemicType;
 }
 
 export const GlobeLegend: React.FC<GlobeLegendProps> = ({
@@ -18,16 +20,18 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
   onNormalizationChange,
   minValue,
   maxValue,
+  pandemic,
 }) => {
-  const { dark, light } = getColorScaleEndpoints();
-  const metrics: MetricType[] = ['casesPerMillion', 'cases', 'deathsPerMillion', 'deaths'];
+  const config = getPandemicConfig(pandemic);
+  const { dark, light } = getColorScaleEndpoints(pandemic);
+  const metrics = config.availableMetrics;
 
   return (
     <div className="bg-slate-900/80 backdrop-blur border border-slate-700 rounded-lg p-4 shadow-xl">
       {/* Header */}
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
-          <Info className="w-4 h-4 text-blue-400" />
+          <Info className="w-4 h-4" style={{ color: config.accentColor }} />
           Color Scale Legend
         </h3>
       </div>
@@ -35,7 +39,7 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
       {/* Color Scale Visualization */}
       <div className="mb-4">
         <div className="flex items-center gap-3">
-          {/* Dark Red (Low) */}
+          {/* Dark (Low) */}
           <div className="text-center">
             <div
               className="w-8 h-8 rounded border border-slate-600 shadow-lg"
@@ -54,7 +58,7 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
             />
           </div>
 
-          {/* Light Red (High) */}
+          {/* Light (High) */}
           <div className="text-center">
             <div
               className="w-8 h-8 rounded border border-slate-600 shadow-lg"
@@ -64,7 +68,7 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
           </div>
         </div>
         <p className="text-xs text-slate-500 mt-2 text-center">
-          Darker = Fewer cases | Lighter = More cases
+          Darker = Lower severity | Lighter = Higher severity
         </p>
       </div>
 
@@ -85,11 +89,6 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
         </div>
-        <p className="text-xs text-slate-500 mt-1">
-          {metric === 'casesPerMillion' || metric === 'deathsPerMillion'
-            ? 'Per 1 million population'
-            : 'Per 100k population'}
-        </p>
       </div>
 
       {/* Normalization Toggle */}
@@ -100,9 +99,14 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
             onClick={() => onNormalizationChange('linear')}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               normalization === 'linear'
-                ? 'bg-red-600 text-white shadow-lg'
+                ? 'text-white shadow-lg'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
             }`}
+            style={
+              normalization === 'linear'
+                ? { backgroundColor: config.accentColor }
+                : undefined
+            }
           >
             Linear
           </button>
@@ -110,9 +114,14 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
             onClick={() => onNormalizationChange('log')}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               normalization === 'log'
-                ? 'bg-red-600 text-white shadow-lg'
+                ? 'text-white shadow-lg'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
             }`}
+            style={
+              normalization === 'log'
+                ? { backgroundColor: config.accentColor }
+                : undefined
+            }
           >
             Logarithmic
           </button>
@@ -141,9 +150,11 @@ export const GlobeLegend: React.FC<GlobeLegendProps> = ({
       {/* Help Text */}
       <div className="mt-4 p-3 bg-blue-900/20 border border-blue-800/30 rounded-lg">
         <p className="text-xs text-blue-200">
-          💡 <strong>Tip:</strong> Click on any country to see detailed statistics. The globe auto-rotates and responds to your interactions.
+          💡 <strong>Tip:</strong> Click on any location to see detailed statistics. The globe auto-rotates and responds to your interactions.
         </p>
       </div>
     </div>
   );
 };
+
+

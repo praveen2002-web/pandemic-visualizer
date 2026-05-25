@@ -1,15 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { setAllData, setLoading, setError } from '../store/covidSlice';
-import { selectLoading, selectLastFetch } from '../store/selectors';
+import { useAppDispatch } from '../store/hooks';
+import { setAllPandemicData, setLoading, setError } from '../store/pandemicSlice';
 import { dataFetcher } from '../services/dataFetcher';
 
 const REFRESH_INTERVAL = 2 * 60 * 1000; // 2 minutes
 
 export function useCovidData() {
   const dispatch = useAppDispatch();
-  const loading = useAppSelector(selectLoading);
-  const lastFetch = useAppSelector(selectLastFetch);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = async () => {
@@ -20,7 +17,13 @@ export function useCovidData() {
         dataFetcher.fetchCountriesData(),
       ]);
 
-      dispatch(setAllData({ global: globalStats, countries: countriesData }));
+      dispatch(
+        setAllPandemicData({
+          pandemic: 'covid',
+          global: globalStats,
+          countries: countriesData,
+        })
+      );
       dispatch(setError(null));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch COVID-19 data';
@@ -46,5 +49,5 @@ export function useCovidData() {
     };
   }, [dispatch]);
 
-  return { loading, lastFetch, refetch: fetchData };
+  return { refetch: fetchData };
 }

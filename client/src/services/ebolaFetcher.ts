@@ -1,205 +1,251 @@
 /**
  * Ebola data fetcher
- * Data source: montanaflynn/ebola-outbreak-api (https://github.com/montanaflynn/ebola-outbreak-api)
- * Fallback: hardcoded seed data if API unavailable
- * 
- * The API provides historical Ebola outbreak data by country with case counts and deaths.
- * Refresh rate: 5 minutes (Ebola data changes less frequently than COVID-19)
+ *
+ * Data file: /ebola_2025-03-10_humdata.org.csv
+ * Filename convention: pandemicName_lastUpdatedDate_dataSource.csv
+ *
+ * Metadata extracted from filename:
+ *   - pandemicName  → "ebola"
+ *   - lastUpdated   → "2025-03-10"
+ *   - dataSource    → "humdata.org"
+ *
+ * CSV columns: Indicator, Country, Date, value
+ * We use the "Cumulative number of confirmed, probable and suspected Ebola cases/deaths"
+ * indicators and take the latest reported Date per country.
  */
 
-import axios from 'axios';
 import type { GlobalPandemicStats, PandemicCountryData } from '@/types/pandemic';
 
-// API endpoint
-const EBOLA_API = 'https://api.covid19api.com/ebola'; // Note: using alternate endpoint
-const EBOLA_FALLBACK_API = 'https://raw.githubusercontent.com/montanaflynn/ebola-outbreak-api/master/data/cases.json';
+// ─── File metadata ─────────────────────────────────────────────────────────────
+const CSV_FILENAME = 'ebola_2025-03-10_humdata.org.csv';
 
-interface EbolaCountryResponse {
-  country: string;
-  cases?: number;
-  deaths?: number;
-  lat?: number;
-  lon?: number;
+/**
+ * Parse pandemic metadata from the CSV filename.
+ * Format: pandemicName_lastUpdatedDate_dataSource.csv
+ * Parts are split by '_'.
+ */
+function parseFileMeta(filename: string): {
+  pandemicName: string;
+  lastUpdated: string;
+  dataSource: string;
+} {
+  // Strip the .csv extension, then split on '_'
+  const base = filename.replace(/\.csv$/i, '');
+  const parts = base.split('_');
+
+  // parts[0] = pandemic name, parts[1] = date, parts[2] = data source
+  const pandemicName = parts[0] ?? 'ebola';
+  const lastUpdated = parts[1] ?? new Date().toISOString().slice(0, 10);
+  const dataSource = parts[2] ?? 'unknown';
+
+  return { pandemicName, lastUpdated, dataSource };
 }
 
-interface EbolaAPIResponse {
-  data?: EbolaCountryResponse[];
-  countries?: EbolaCountryResponse[];
-}
+const FILE_META = parseFileMeta(CSV_FILENAME);
 
-// Hardcoded fallback data (2014-2016 West African Ebola outbreak)
-const EBOLA_FALLBACK_DATA: Record<string, PandemicCountryData> = {
-  GN: {
-    country: 'Guinea',
-    countryCode: 'GN',
-    cases: 3811,
-    deaths: 2543,
-    fatalityRate: 66.7,
-  },
-  LR: {
-    country: 'Liberia',
-    countryCode: 'LR',
-    cases: 10675,
-    deaths: 4810,
-    fatalityRate: 45.1,
-  },
-  SL: {
-    country: 'Sierra Leone',
-    countryCode: 'SL',
-    cases: 14124,
-    deaths: 3956,
-    fatalityRate: 28.0,
-  },
-  ML: {
-    country: 'Mali',
-    countryCode: 'ML',
-    cases: 8,
-    deaths: 6,
-    fatalityRate: 75.0,
-  },
-  NG: {
-    country: 'Nigeria',
-    countryCode: 'NG',
-    cases: 20,
-    deaths: 8,
-    fatalityRate: 40.0,
-  },
-  US: {
-    country: 'United States',
-    countryCode: 'US',
-    cases: 4,
-    deaths: 1,
-    fatalityRate: 25.0,
-  },
+// ─── Indicator strings ─────────────────────────────────────────────────────────
+const INDICATOR_TOTAL_CASES =
+  'Cumulative number of confirmed, probable and suspected Ebola cases';
+const INDICATOR_TOTAL_DEATHS =
+  'Cumulative number of confirmed, probable and suspected Ebola deaths';
+
+// ─── ISO 3166-1 alpha-2 country code mapping ──────────────────────────────────
+const COUNTRY_CODE_MAP: Record<string, string> = {
+  Guinea: 'GN',
+  Liberia: 'LR',
+  'Sierra Leone': 'SL',
+  Mali: 'ML',
+  Nigeria: 'NG',
+  Senegal: 'SN',
+  Spain: 'ES',
+  'United Kingdom': 'GB',
+  'United States of America': 'US',
+  Italy: 'IT',
+  France: 'FR',
 };
+
+interface CsvRow {
+  indicator: string;
+  country: string;
+  date: string; // YYYY-MM-DD
+  value: number;
+}
 
 class EbolaFetcher {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
-  private cacheExpiry = 5 * 60 * 1000; // 5 minutes
+  // Long cache – data is static local CSV, no need to re-parse often
+  private cacheExpiry = 60 * 60 * 1000; // 1 hour
 
-  async fetchGlobalStats(): Promise<GlobalPandemicStats> {
-    try {
-      const cached = this.cache.get('ebola-global');
-      if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
-        return cached.data;
-      }
+  // ─── CSV parsing ────────────────────────────────────────────────────────────
 
-      // Try to fetch from API
-      const countriesData = await this.fetchEbolaCountries();
-      const countries = Object.values(countriesData);
-
-      const totalCases = countries.reduce((sum, c) => sum + (c.cases || 0), 0);
-      const totalDeaths = countries.reduce((sum, c) => sum + (c.deaths || 0), 0);
-      const fatalityRate = totalCases > 0 ? (totalDeaths / totalCases) * 100 : 0;
-
-      const globalStats: GlobalPandemicStats = {
-        totalCases,
-        totalDeaths,
-        fatalityRate: Math.round(fatalityRate * 10) / 10,
-        lastUpdated: new Date().toISOString(),
-      };
-
-      this.cache.set('ebola-global', { data: globalStats, timestamp: Date.now() });
-      return globalStats;
-    } catch (error) {
-      console.error('Error fetching Ebola global stats:', error);
-      throw error;
+  /**
+   * Fetch and parse the ebola CSV from the public directory.
+   * Returns typed rows, skipping the header and any malformed lines.
+   */
+  private async fetchAndParseCsv(): Promise<CsvRow[]> {
+    const response = await fetch(`/${CSV_FILENAME}`);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch ${CSV_FILENAME}: ${response.status} ${response.statusText}`
+      );
     }
+
+    const text = await response.text();
+    const lines = text.split(/\r?\n/);
+    const rows: CsvRow[] = [];
+
+    // Skip header (index 0)
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parsed = this.parseCsvLine(line);
+      if (parsed.length < 4) continue;
+
+      const [indicator, country, date, rawValue] = parsed;
+      const value = parseFloat(rawValue);
+      if (isNaN(value)) continue;
+
+      rows.push({ indicator, country, date, value });
+    }
+
+    return rows;
   }
 
-  async fetchEbolaCountries(): Promise<Record<string, PandemicCountryData>> {
-    try {
-      const cached = this.cache.get('ebola-countries');
-      if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
-        return cached.data;
-      }
+  /**
+   * Minimal RFC-4180 CSV line parser that handles double-quoted fields
+   * (including fields containing commas or embedded quotes).
+   */
+  private parseCsvLine(line: string): string[] {
+    const fields: string[] = [];
+    let i = 0;
 
-      let countriesData: Record<string, PandemicCountryData> = {};
-
-      try {
-        // Try primary API endpoint
-        const response = await axios.get<EbolaAPIResponse>(EBOLA_API, {
-          timeout: 10000,
-        });
-
-        const data = response.data.data || response.data.countries || [];
-
-        if (Array.isArray(data) && data.length > 0) {
-          countriesData = this.normalizeEbolaData(data);
-        } else {
-          throw new Error('API returned empty data');
-        }
-      } catch (primaryError) {
-        console.warn('Primary Ebola API failed, trying fallback:', primaryError);
-
-        try {
-          // Try fallback API endpoint
-          const fallbackResponse = await axios.get<EbolaCountryResponse[]>(
-            EBOLA_FALLBACK_API,
-            { timeout: 10000 }
-          );
-
-          if (Array.isArray(fallbackResponse.data) && fallbackResponse.data.length > 0) {
-            countriesData = this.normalizeEbolaData(fallbackResponse.data);
+    while (i < line.length) {
+      if (line[i] === '"') {
+        // Quoted field
+        let field = '';
+        i++; // skip opening quote
+        while (i < line.length) {
+          if (line[i] === '"') {
+            if (line[i + 1] === '"') {
+              // Escaped quote
+              field += '"';
+              i += 2;
+            } else {
+              i++; // skip closing quote
+              break;
+            }
           } else {
-            throw new Error('Fallback API returned empty data');
+            field += line[i++];
           }
-        } catch (fallbackError) {
-          console.warn('Fallback Ebola API also failed, using hardcoded data:', fallbackError);
-          countriesData = EBOLA_FALLBACK_DATA;
+        }
+        fields.push(field);
+        // skip trailing comma
+        if (line[i] === ',') i++;
+      } else {
+        // Unquoted field
+        const end = line.indexOf(',', i);
+        if (end === -1) {
+          fields.push(line.slice(i));
+          break;
+        } else {
+          fields.push(line.slice(i, end));
+          i = end + 1;
         }
       }
-
-      this.cache.set('ebola-countries', { data: countriesData, timestamp: Date.now() });
-      return countriesData;
-    } catch (error) {
-      console.error('Error fetching Ebola countries data:', error);
-      // Return fallback data instead of throwing
-      return EBOLA_FALLBACK_DATA;
     }
+
+    return fields;
   }
 
-  private normalizeEbolaData(
-    data: EbolaCountryResponse[]
-  ): Record<string, PandemicCountryData> {
+  // ─── Data aggregation ────────────────────────────────────────────────────────
+
+  /**
+   * Build a per-country map using the latest reported date for each country.
+   */
+  private aggregateByCountry(rows: CsvRow[]): Record<string, PandemicCountryData> {
+    const casesMap: Record<string, { date: string; value: number }> = {};
+    const deathsMap: Record<string, { date: string; value: number }> = {};
+
+    for (const row of rows) {
+      if (row.indicator === INDICATOR_TOTAL_CASES) {
+        const existing = casesMap[row.country];
+        if (!existing || row.date > existing.date) {
+          casesMap[row.country] = { date: row.date, value: row.value };
+        }
+      } else if (row.indicator === INDICATOR_TOTAL_DEATHS) {
+        const existing = deathsMap[row.country];
+        if (!existing || row.date > existing.date) {
+          deathsMap[row.country] = { date: row.date, value: row.value };
+        }
+      }
+    }
+
     const countryMap: Record<string, PandemicCountryData> = {};
+    const allCountries = new Set([...Object.keys(casesMap), ...Object.keys(deathsMap)]);
 
-    for (const item of data) {
-      if (!item.country) continue;
-
-      const code = this.mapCountryToCode(item.country);
-      const cases = item.cases || 0;
-      const deaths = item.deaths || 0;
+    allCountries.forEach((country) => {
+      const cases = casesMap[country]?.value ?? 0;
+      const deaths = deathsMap[country]?.value ?? 0;
       const fatalityRate = cases > 0 ? (deaths / cases) * 100 : 0;
+      const code = COUNTRY_CODE_MAP[country] ?? country.slice(0, 2).toUpperCase();
 
       countryMap[code] = {
-        country: item.country,
+        country,
         countryCode: code,
         cases,
         deaths,
+        recovered: 0,
+        active: Math.max(0, cases - deaths),
         fatalityRate: Math.round(fatalityRate * 10) / 10,
       };
-    }
+    });
 
     return countryMap;
   }
 
-  private mapCountryToCode(countryName: string): string {
-    // Mapping of country names to ISO 3166-1 alpha-2 codes
-    const mapping: Record<string, string> = {
-      'Guinea': 'GN',
-      'Liberia': 'LR',
-      'Sierra Leone': 'SL',
-      'Mali': 'ML',
-      'Nigeria': 'NG',
-      'United States': 'US',
-      'UK': 'GB',
-      'Spain': 'ES',
-      'Italy': 'IT',
-      'France': 'FR',
+  // ─── Public API ──────────────────────────────────────────────────────────────
+
+  async fetchEbolaCountries(): Promise<Record<string, PandemicCountryData>> {
+    const cached = this.cache.get('ebola-countries');
+    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+      return cached.data;
+    }
+
+    const rows = await this.fetchAndParseCsv();
+    const countriesData = this.aggregateByCountry(rows);
+    this.cache.set('ebola-countries', { data: countriesData, timestamp: Date.now() });
+    return countriesData;
+  }
+
+  async fetchGlobalStats(): Promise<GlobalPandemicStats> {
+    const cached = this.cache.get('ebola-global');
+    if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+      return cached.data;
+    }
+
+    const countriesData = await this.fetchEbolaCountries();
+    const countries = Object.values(countriesData);
+
+    const totalCases = countries.reduce((sum, c) => sum + (c.cases || 0), 0);
+    const totalDeaths = countries.reduce((sum, c) => sum + (c.deaths || 0), 0);
+    const fatalityRate = totalCases > 0 ? (totalDeaths / totalCases) * 100 : 0;
+
+    const globalStats: GlobalPandemicStats = {
+      totalCases,
+      totalDeaths,
+      fatalityRate: Math.round(fatalityRate * 10) / 10,
+      // lastUpdated is taken from the filename metadata (field[1])
+      lastUpdated: FILE_META.lastUpdated,
     };
 
-    return mapping[countryName] || countryName.slice(0, 2).toUpperCase();
+    this.cache.set('ebola-global', { data: globalStats, timestamp: Date.now() });
+    return globalStats;
+  }
+
+  /** Expose file metadata so UI components can display source attribution */
+  getFileMeta() {
+    return FILE_META;
   }
 
   clearCache(): void {

@@ -10,21 +10,44 @@ import { CountryList } from '@/components/CountryList';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setActivePandemic } from '@/store/pandemicSlice';
 import {
-  selectActivePandemic,
   selectLoading,
   selectError,
   selectActiveLastFetch,
 } from '@/store/pandemicSelectors';
 import { Globe, List, AlertCircle, Loader } from 'lucide-react';
-import { getPandemicConfig, MetricType, NormalizationType } from '@/config/pandemicConfig';
+import { getPandemicConfig } from '@/config/pandemicConfig';
 import type { PandemicType } from '@/types/pandemic';
+import { ebolaFetcher } from '@/services/ebolaFetcher';
+import { westNileFetcher } from '@/services/westNileFetcher';
+import { usePandemicPreferences } from '@/hooks/usePandemicPreferences';
+
+// Metadata parsed from the CSV filenames — drives source attribution in the footer
+const ebolaFileMeta = ebolaFetcher.getFileMeta();
+const westNileFileMeta = westNileFetcher.getFileMeta();
 
 export default function Home() {
   const dispatch = useAppDispatch();
-  const activePandemic = useAppSelector(selectActivePandemic);
   const isLoading = useAppSelector(selectLoading);
   const error = useAppSelector(selectError);
   const lastFetch = useAppSelector(selectActiveLastFetch);
+
+  // ── Cookie-persisted user preferences ───────────────────────────────────
+  const {
+    pandemic: activePandemic,
+    setPandemic,
+    viewMode,
+    setViewMode,
+    metric,
+    setMetric,
+    normalization,
+    setNormalization,
+  } = usePandemicPreferences(getPandemicConfig('covid').defaultMetric);
+
+  // Keep Redux in sync with the cookie value on first render
+  useEffect(() => {
+    dispatch(setActivePandemic(activePandemic));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const activePandemicCountries = useAppSelector(state => state.pandemic.countries[activePandemic]);
   const hasNoData = !activePandemicCountries || Object.keys(activePandemicCountries).length === 0;
 
@@ -33,23 +56,17 @@ export default function Home() {
   const { refetch: refetchEbola } = useEbolaData();
   const { refetch: refetchWestNile } = useWestNileData();
 
-  const [viewMode, setViewMode] = useState<'globe' | 'list'>('globe');
-  const [metric, setMetric] = useState<MetricType>('casesPerMillion');
-  const [normalization, setNormalization] = useState<NormalizationType>('log');
   const [minValue, setMinValue] = useState(0);
   const [maxValue, setMaxValue] = useState(1);
 
   // Get active pandemic config
   const config = getPandemicConfig(activePandemic);
 
-  // Reset metric when pandemic changes
-  useEffect(() => {
-    setMetric(config.defaultMetric);
-  }, [activePandemic, config]);
-
   const handlePandemicChange = (pandemic: PandemicType) => {
-    dispatch(setActivePandemic(pandemic));
-    
+    setPandemic(pandemic);               // persist to cookie
+    dispatch(setActivePandemic(pandemic)); // sync Redux
+    setMetric(getPandemicConfig(pandemic).defaultMetric); // reset metric cookie
+
     // Trigger fresh data fetch for the newly selected pandemic
     if (pandemic === 'covid') {
       refetchCovid();
@@ -192,7 +209,7 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <div className="rounded-lg overflow-hidden border border-slate-700/50 h-[calc(100vh-400px)]">
+          <div className="min-h-[calc(100vh-320px)]">
             <CountryList />
           </div>
         )}
@@ -212,12 +229,12 @@ export default function Home() {
                   <>
                     <li>
                       <a
-                        href="https://www.worldometers.info/coronavirus"
+                        href="https://disease.sh"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:text-blue-400 transition-colors"
                       >
-                        Worldometer
+                        disease.sh
                       </a>
                     </li>
                     <li>
@@ -235,24 +252,24 @@ export default function Home() {
                 {activePandemic === 'ebola' && (
                   <li>
                     <a
-                      href="https://github.com/montanaflynn/ebola-outbreak-api"
+                      href={`https://${ebolaFileMeta.dataSource}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:text-red-400 transition-colors"
                     >
-                      montanaflynn/ebola-outbreak-api
+                      {ebolaFileMeta.dataSource}
                     </a>
                   </li>
                 )}
                 {activePandemic === 'westnile' && (
                   <li>
                     <a
-                      href="https://www.cdc.gov/west-nile-virus"
+                      href={`https://${westNileFileMeta.dataSource}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:text-amber-400 transition-colors"
                     >
-                      CDC West Nile Virus
+                      {westNileFileMeta.dataSource}
                     </a>
                   </li>
                 )}
@@ -268,18 +285,21 @@ export default function Home() {
               <h3 className="font-semibold text-white mb-2">Information</h3>
               <p className="text-sm text-slate-400">
                 {activePandemic === 'covid'
-                  ? 'Data updates every 2 minutes'
+                  ? 'Live data · updates every 2 minutes'
                   : activePandemic === 'ebola'
-                  ? 'Data updates every 5 minutes'
-                  : 'Data last updated: 2024'}
-                . Last update:{' '}
+                  ? `Dataset last updated: ${ebolaFileMeta.lastUpdated}`
+                  : `Dataset last updated: ${westNileFileMeta.lastUpdated}`}
+                {'. '}Loaded:{' '}
                 {lastFetch ? new Date(lastFetch).toLocaleTimeString() : 'N/A'}
               </p>
             </div>
           </div>
 
-          <div className="border-t border-slate-700/50 pt-6 text-center text-sm text-slate-500">
+          <div className="border-t border-slate-700/50 pt-6 text-sm text-slate-500 flex flex-row justify-between items-center">
             <p>© 2025 Pandemic Visualizer</p>
+            <p>
+              Design by <a href="https://webasi.co/" className="text-slate-400 hover:text-white">WEBASI</a>
+            </p>
           </div>
         </div>
       </footer>

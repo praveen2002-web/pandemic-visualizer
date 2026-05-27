@@ -118,7 +118,7 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   // Refs so label callbacks always read the latest data without stale closures
   const countriesRef = useRef(countries);
   const metricRef = useRef(metric);
-  // Map from ISO2 code -> country name built from GeoJSON (fallback for countries with no pandemic data)
+  
   const geoNameMapRef = useRef<Record<string, string>>({});
 
   const [metrics, setMetrics] = useState<CountryMetrics>({});

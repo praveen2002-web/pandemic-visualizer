@@ -115,7 +115,7 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   const countries = useAppSelector(selectActiveCountries);
   const selectedCountry = useAppSelector(selectSelectedCountryCode);
 
-  // Refs so label callbacks always read the latest data without stale closures
+ 
   const countriesRef = useRef(countries);
   const metricRef = useRef(metric);
   

@@ -115,6 +115,12 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   const countries = useAppSelector(selectActiveCountries);
   const selectedCountry = useAppSelector(selectSelectedCountryCode);
 
+  // Refs so label callbacks always read the latest data without stale closures
+  const countriesRef = useRef(countries);
+  const metricRef = useRef(metric);
+  // Map from ISO2 code -> country name built from GeoJSON (fallback for countries with no pandemic data)
+  const geoNameMapRef = useRef<Record<string, string>>({});
+
   const [metrics, setMetrics] = useState<CountryMetrics>({});
   const [minMetric, setMinMetric] = useState(0);
   const [maxMetric, setMaxMetric] = useState(1);
@@ -126,6 +132,41 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   const { dark, light } = getColorScaleEndpoints(pandemic);
   const darkRgb = hexToRgb(dark);
   const lightRgb = hexToRgb(light);
+
+  // Keep refs in sync with latest values
+  useEffect(() => { countriesRef.current = countries; }, [countries]);
+  useEffect(() => { metricRef.current = metric; }, [metric]);
+
+  // Helper to build the polygon label — reads from refs so it's always fresh
+  const buildLabelFn = () => (d: any) => {
+    const code = d.properties?.code;
+    const currentCountries = countriesRef.current;
+    const currentMetric = metricRef.current;
+    const country = currentCountries[code];
+    // Multi-source name resolution: API data > GeoJSON map > raw GeoJSON properties > code
+    const countryName =
+      country?.country ||
+      geoNameMapRef.current[code] ||
+      d.properties?.NAME ||
+      d.properties?.ADMIN ||
+      d.properties?.name_long ||
+      d.properties?.name ||
+      code ||
+      '';
+    if (!country) {
+      return `<div class="globe-tooltip"><div class="globe-tooltip-name">${countryName}</div></div>`;
+    }
+    const metricLabel = currentMetric === 'fatalityRate' ? 'Fatality Rate' : 'Cases';
+    const metricValue =
+      currentMetric === 'fatalityRate'
+        ? (country.fatalityRate ?? 0).toFixed(1) + '%'
+        : (country.cases ?? 0).toLocaleString();
+    return `<div class="globe-tooltip">
+      <div class="globe-tooltip-name">${countryName}</div>
+      <div>${metricLabel}: ${metricValue}</div>
+      <div>Deaths: ${(country.deaths ?? 0).toLocaleString()}</div>
+    </div>`;
+  };
 
   // Calculate metrics for all countries
   useEffect(() => {
@@ -146,6 +187,11 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
     setMetrics(newMetrics);
     setMinMetric(min === Infinity ? 0 : min);
     setMaxMetric(max === -Infinity ? 1 : max);
+
+    // Re-apply label so it picks up fresh country data
+    if (globeRef.current) {
+      globeRef.current.polygonLabel(buildLabelFn());
+    }
   }, [countries, metric]);
 
   // Load GeoJSON and initialize globe
@@ -194,14 +240,32 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
           .height(containerRef.current.clientHeight);
 
         // Process GeoJSON features
-        const features = (geoData.features || []).map((feature: any) => ({
-          ...feature,
-          properties: {
-            ...feature.properties,
-            code: feature.properties?.iso_a2 || feature.properties?.ISO_A2 || 'XX',
-            name: feature.properties?.name || 'Unknown',
-          },
-        }));
+        // Natural Earth GeoJSON uses uppercase property names: NAME, ADMIN, ISO_A2, ISO_A3
+        const features = (geoData.features || []).map((feature: any) => {
+          const props = feature.properties || {};
+          // Resolve ISO2 code — Natural Earth uses ISO_A2 (uppercase); -99 means no code
+          const rawCode = props.ISO_A2 || props.iso_a2 || props.ISO_A3?.slice(0, 2) || '';
+          const code = rawCode && rawCode !== '-99' ? rawCode : (props.ADM0_A3 || 'XX');
+          // Resolve country name — Natural Earth uses NAME or ADMIN (uppercase)
+          const resolvedName = props.NAME || props.ADMIN || props.name_long || props.name || props.SOVEREIGNT || '';
+          return {
+            ...feature,
+            properties: {
+              ...props,
+              code,
+              name: resolvedName,
+            },
+          };
+        });
+
+        // Build a code→name map from GeoJSON for tooltip fallback
+        const nameMap: Record<string, string> = {};
+        for (const f of features) {
+          if (f.properties.code && f.properties.name) {
+            nameMap[f.properties.code] = f.properties.name;
+          }
+        }
+        geoNameMapRef.current = nameMap;
 
         // Add polygons
         globe.polygonsData(features);
@@ -227,24 +291,8 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
           return d.properties?.code === selectedCountry ? 0.12 : 0.01;
         });
 
-        // Set polygon labels
-        globe.polygonLabel((d: any) => {
-          const code = d.properties?.code;
-          const country = countries[code];
-          if (!country) return d.properties?.name || 'Unknown';
-
-          const metric1 = metric === 'fatalityRate' ? 'Fatality Rate' : 'Cases';
-          const metric1Value =
-            metric === 'fatalityRate'
-              ? (country.fatalityRate ?? 0).toFixed(1) + '%'
-              : (country.cases ?? 0).toLocaleString();
-
-          return `<div class="text-sm">
-            <div class="font-bold">${country.country}</div>
-            <div>${metric1}: ${metric1Value}</div>
-            <div>Deaths: ${(country.deaths ?? 0).toLocaleString()}</div>
-          </div>`;
-        });
+        // Set polygon labels — uses buildLabelFn so it reads from refs (no stale closure)
+        globe.polygonLabel(buildLabelFn());
 
         // Add click handler
         globe.onPolygonClick((d: any) => {

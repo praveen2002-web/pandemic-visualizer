@@ -15,6 +15,7 @@ export interface GlobalPandemicStats {
   activeCases?: number;
   fatalityRate: number; // deaths / cases, expressed as percentage (0-100)
   lastUpdated: string;
+  isFallback?: boolean; // true when live sources failed and a built-in snapshot is shown
 }
 
 /**

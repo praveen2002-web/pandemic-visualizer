@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useCovidData } from '@/hooks/useCovidData';
-import { useEbolaData } from '@/hooks/useEbolaData';
-import { useWestNileData } from '@/hooks/useWestNileData';
+import { usePandemicData } from '@/hooks/usePandemicData';
 import { GlobeView } from '@/components/GlobeView';
 import { GlobeLegend } from '@/components/GlobeLegend';
 import { CountryDetailModal } from '@/components/CountryDetailModal';
@@ -13,6 +11,7 @@ import {
   selectLoading,
   selectError,
   selectActiveLastFetch,
+  selectActiveGlobalStats,
 } from '@/store/pandemicSelectors';
 import { Globe, List, AlertCircle, Loader } from 'lucide-react';
 import { getPandemicConfig } from '@/config/pandemicConfig';
@@ -21,7 +20,7 @@ import { ebolaFetcher } from '@/services/ebolaFetcher';
 import { westNileFetcher } from '@/services/westNileFetcher';
 import { usePandemicPreferences } from '@/hooks/usePandemicPreferences';
 
-// Metadata parsed from the CSV filenames — drives source attribution in the footer
+// Metadata parsed from the data filenames — drives source attribution in the footer
 const ebolaFileMeta = ebolaFetcher.getFileMeta();
 const westNileFileMeta = westNileFetcher.getFileMeta();
 
@@ -30,6 +29,7 @@ export default function Home() {
   const isLoading = useAppSelector(selectLoading);
   const error = useAppSelector(selectError);
   const lastFetch = useAppSelector(selectActiveLastFetch);
+  const isFallback = useAppSelector(selectActiveGlobalStats)?.isFallback;
 
   // ── Cookie-persisted user preferences ───────────────────────────────────
   const {
@@ -51,10 +51,8 @@ export default function Home() {
   const activePandemicCountries = useAppSelector(state => state.pandemic.countries[activePandemic]);
   const hasNoData = !activePandemicCountries || Object.keys(activePandemicCountries).length === 0;
 
-  // Load data for each pandemic
-  const { refetch: refetchCovid } = useCovidData();
-  const { refetch: refetchEbola } = useEbolaData();
-  const { refetch: refetchWestNile } = useWestNileData();
+  // Load data for the active pandemic only
+  usePandemicData(activePandemic);
 
   const [minValue, setMinValue] = useState(0);
   const [maxValue, setMaxValue] = useState(1);
@@ -66,15 +64,6 @@ export default function Home() {
     setPandemic(pandemic);               // persist to cookie
     dispatch(setActivePandemic(pandemic)); // sync Redux
     setMetric(getPandemicConfig(pandemic).defaultMetric); // reset metric cookie
-
-    // Trigger fresh data fetch for the newly selected pandemic
-    if (pandemic === 'covid') {
-      refetchCovid();
-    } else if (pandemic === 'ebola') {
-      refetchEbola();
-    } else if (pandemic === 'westnile') {
-      refetchWestNile();
-    }
   };
 
   const pandemics: Array<{ id: PandemicType; label: string }> = [
@@ -164,6 +153,17 @@ export default function Home() {
           <div className="container mx-auto px-4 py-3 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
             <p className="text-red-200 text-sm">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {isFallback && (
+        <div className="bg-amber-900/20 border-b border-amber-800/50">
+          <div className="container mx-auto px-4 py-3 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <p className="text-amber-200 text-sm">
+              Live data source unavailable. Showing an offline snapshot from 2023.
+            </p>
           </div>
         </div>
       )}
@@ -285,7 +285,9 @@ export default function Home() {
               <h3 className="font-semibold text-white mb-2">Information</h3>
               <p className="text-sm text-slate-400">
                 {activePandemic === 'covid'
-                  ? 'Live data · updates every 2 minutes'
+                  ? isFallback
+                    ? 'Offline snapshot (2023)'
+                    : 'Live data · updates every 2 minutes'
                   : activePandemic === 'ebola'
                   ? `Dataset last updated: ${ebolaFileMeta.lastUpdated}`
                   : `Dataset last updated: ${westNileFileMeta.lastUpdated}`}

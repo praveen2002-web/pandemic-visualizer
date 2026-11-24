@@ -1,7 +1,6 @@
 /**
  * COVID-19 data fetcher
  * Primary source:  disease.sh (https://disease.sh) – /v3/covid-19
- * Fallback source: NovelCOVID API mirror (https://api.coronatracker.com)
  * Final fallback:  hardcoded 2023 WHO snapshot data
  *
  * NOTE: Produces GlobalPandemicStats and PandemicCountryData so data lands
@@ -13,7 +12,6 @@ import type { GlobalPandemicStats, PandemicCountryData } from '@/types/pandemic'
 
 // ─── API endpoints ────────────────────────────────────────────────────────────
 const DISEASE_SH = 'https://disease.sh/v3/covid-19';
-const CORONA_API = 'https://corona.lmao.ninja/v2'; // alternative mirror
 
 // ─── Raw API shapes ───────────────────────────────────────────────────────────
 interface DiseaseShCountry {
@@ -91,8 +89,9 @@ const FALLBACK_COUNTRIES: Record<string, PandemicCountryData> = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function normalizeCountry(raw: DiseaseShCountry): PandemicCountryData {
-  const code = raw.countryInfo.iso2 || raw.countryInfo.iso3 || raw.country.slice(0, 2).toUpperCase();
+export function normalizeCountry(raw: DiseaseShCountry): PandemicCountryData | null {
+  const code = raw.countryInfo?.iso2 || raw.countryInfo?.iso3;
+  if (!code) return null; // cruise ships etc: a guessed code could overwrite a real country
   const fatalityRate = raw.cases > 0 ? (raw.deaths / raw.cases) * 100 : 0;
   return {
     country: raw.country,
@@ -121,6 +120,8 @@ function normalizeGlobal(raw: DiseaseShGlobal): GlobalPandemicStats {
 class DataFetcher {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private cacheExpiry = 2 * 60 * 1000; // 2 minutes
+  /** true when the last fetch fell back to the built-in 2023 snapshot */
+  usedFallback = false;
 
   // Try a URL with axios; resolve to null on any error so callers can try next
   private async tryFetch<T>(url: string, timeout = 10000): Promise<T | null> {
@@ -138,10 +139,8 @@ class DataFetcher {
       return cached.data;
     }
 
-    // Try primary, then mirror
-    let raw = await this.tryFetch<DiseaseShGlobal>(`${DISEASE_SH}/all`);
-    if (!raw) raw = await this.tryFetch<DiseaseShGlobal>(`${CORONA_API}/all`);
-
+    const raw = await this.tryFetch<DiseaseShGlobal>(`${DISEASE_SH}/all`);
+    this.usedFallback = !raw;
     const stats = raw ? normalizeGlobal(raw) : FALLBACK_GLOBAL;
     this.cache.set('covid-global', { data: stats, timestamp: Date.now() });
     return stats;
@@ -153,22 +152,22 @@ class DataFetcher {
       return cached.data;
     }
 
-    // Try primary, then mirror
-    let rawList = await this.tryFetch<DiseaseShCountry[]>(`${DISEASE_SH}/countries?allowNull=true`);
-    if (!rawList || !Array.isArray(rawList) || rawList.length === 0) {
-      rawList = await this.tryFetch<DiseaseShCountry[]>(`${CORONA_API}/countries`);
-    }
+    const rawList = await this.tryFetch<DiseaseShCountry[]>(`${DISEASE_SH}/countries?allowNull=true`);
 
     let result: Record<string, PandemicCountryData>;
     if (rawList && Array.isArray(rawList) && rawList.length > 0) {
       result = {};
       for (const country of rawList) {
         const normalized = normalizeCountry(country);
-        result[normalized.countryCode] = normalized;
+        if (normalized) result[normalized.countryCode] = normalized;
       }
+      this.usedFallback = false;
     } else {
-      console.warn('[dataFetcher] All API sources failed — using fallback COVID data');
-      result = FALLBACK_COUNTRIES;
+      console.warn('[dataFetcher] API failed — using fallback COVID data');
+      result = Object.fromEntries(
+        Object.entries(FALLBACK_COUNTRIES).map(([k, c]) => [k, { ...c, active: c.cases - c.deaths - (c.recovered ?? 0) }])
+      );
+      this.usedFallback = true;
     }
 
     this.cache.set('covid-countries', { data: result, timestamp: Date.now() });

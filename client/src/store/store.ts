@@ -1,10 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit';
-import covidReducer from './covidSlice';
 import pandemicReducer from './pandemicSlice';
 
 export const store = configureStore({
   reducer: {
-    covid: covidReducer,
     pandemic: pandemicReducer,
   },
 });

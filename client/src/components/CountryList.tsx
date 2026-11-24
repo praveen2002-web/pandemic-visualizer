@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
-import { selectActiveCountriesList, selectActivePandemic } from '@/store/pandemicSelectors';
+import { selectActiveCountries, selectActivePandemic } from '@/store/pandemicSelectors';
 import { setSelectedCountry } from '@/store/pandemicSlice';
 import { formatNumber } from '../utils/colorUtils';
 import { getPandemicConfig } from '@/config/pandemicConfig';
@@ -66,7 +66,8 @@ function Th({ label, col, activeKey, order, onSort, align = 'right', className =
 
 export const CountryList: React.FC = () => {
   const dispatch = useAppDispatch();
-  const countries = useAppSelector(selectActiveCountriesList);
+  const countriesById = useAppSelector(selectActiveCountries);
+  const countries = useMemo(() => Object.values(countriesById), [countriesById]);
   const activePandemic = useAppSelector(selectActivePandemic);
   const config = getPandemicConfig(activePandemic);
 

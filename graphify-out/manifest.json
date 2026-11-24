@@ -1,0 +1,308 @@
+{
+  "client/public/West Nile virus_2026-03-23_data.gov.json": {
+    "mtime": 1779962343.3744593,
+    "seen": 1795378899.712288,
+    "ast_hash": "73247c721ce9f98371c83fcdec728ac5",
+    "semantic_hash": "73247c721ce9f98371c83fcdec728ac5"
+  },
+  "client/public/ebola_2025-03-10_humdata.org.json": {
+    "mtime": 1779958158.0481222,
+    "seen": 1795378899.7122936,
+    "ast_hash": "844b9795161520e2549b9f4c9663118a",
+    "semantic_hash": "844b9795161520e2549b9f4c9663118a"
+  },
+  "client/src/App.tsx": {
+    "mtime": 1779743919.6219654,
+    "seen": 1795378899.7122965,
+    "ast_hash": "6af28d206ca0831648b960641a69457c",
+    "semantic_hash": "6af28d206ca0831648b960641a69457c"
+  },
+  "client/src/components/CountryDetailModal.tsx": {
+    "mtime": 1779721790.6471062,
+    "seen": 1795378899.7122974,
+    "ast_hash": "987f0801e3774d739bdde2cbac113111",
+    "semantic_hash": "987f0801e3774d739bdde2cbac113111"
+  },
+  "client/src/components/CountryInfoPanel.tsx": {
+    "mtime": 1762784433.3605833,
+    "seen": 1795378899.7122989,
+    "ast_hash": "8de4389a1f74e16ab43c2ed95b173a33",
+    "semantic_hash": "8de4389a1f74e16ab43c2ed95b173a33"
+  },
+  "client/src/components/CountryList.tsx": {
+    "mtime": 1779741624.429895,
+    "seen": 1795378899.7122996,
+    "ast_hash": "faca1ef20d3eec8061c99ae27cb711ba",
+    "semantic_hash": "faca1ef20d3eec8061c99ae27cb711ba"
+  },
+  "client/src/components/ErrorBoundary.tsx": {
+    "mtime": 1762784433.3805828,
+    "seen": 1795378899.7123008,
+    "ast_hash": "92d65c611d7e8336eb920329b0e0ffad",
+    "semantic_hash": "92d65c611d7e8336eb920329b0e0ffad"
+  },
+  "client/src/components/GlobalStats.tsx": {
+    "mtime": 1779725320.1709144,
+    "seen": 1795378899.712302,
+    "ast_hash": "7213826d30b1b5822eac0d81a100a028",
+    "semantic_hash": "7213826d30b1b5822eac0d81a100a028"
+  },
+  "client/src/components/GlobeLegend.tsx": {
+    "mtime": 1779725183.4307537,
+    "seen": 1795378899.7123032,
+    "ast_hash": "a6cd03751228109d719b6fcd62952858",
+    "semantic_hash": "a6cd03751228109d719b6fcd62952858"
+  },
+  "client/src/components/GlobeView.tsx": {
+    "mtime": 1779911225.5521374,
+    "seen": 1795378899.712304,
+    "ast_hash": "2cef4e1397b1ea72a1e054795279d4e5",
+    "semantic_hash": "2cef4e1397b1ea72a1e054795279d4e5"
+  },
+  "client/src/components/Map.tsx": {
+    "mtime": 1762784433.4045837,
+    "seen": 1795378899.7123048,
+    "ast_hash": "651182e03ca936c68d60b16db8e3e0c0",
+    "semantic_hash": "651182e03ca936c68d60b16db8e3e0c0"
+  },
+  "client/src/components/ui/button.tsx": {
+    "mtime": 1762784433.4481034,
+    "seen": 1795378899.7123063,
+    "ast_hash": "af3d8b618eba2684cee78e42d2945c93",
+    "semantic_hash": "af3d8b618eba2684cee78e42d2945c93"
+  },
+  "client/src/components/ui/card.tsx": {
+    "mtime": 1762784433.4561045,
+    "seen": 1795378899.7123072,
+    "ast_hash": "99de711a6f221ab31430f0c2437b2465",
+    "semantic_hash": "99de711a6f221ab31430f0c2437b2465"
+  },
+  "client/src/components/ui/chart.tsx": {
+    "mtime": 1762784433.465105,
+    "seen": 1795378899.7123084,
+    "ast_hash": "0c66aa31bcedfb55e613b3317f7ff0b3",
+    "semantic_hash": "0c66aa31bcedfb55e613b3317f7ff0b3"
+  },
+  "client/src/components/ui/sonner.tsx": {
+    "mtime": 1762784433.6126246,
+    "seen": 1795378899.7123096,
+    "ast_hash": "73849904af65861ceede653f824aa552",
+    "semantic_hash": "73849904af65861ceede653f824aa552"
+  },
+  "client/src/components/ui/tooltip.tsx": {
+    "mtime": 1762784433.6471426,
+    "seen": 1795378899.7123106,
+    "ast_hash": "4739c9ad1c3b9f06058205e11a3bcd59",
+    "semantic_hash": "4739c9ad1c3b9f06058205e11a3bcd59"
+  },
+  "client/src/config/pandemicConfig.ts": {
+    "mtime": 1779721520.677255,
+    "seen": 1795378899.7123115,
+    "ast_hash": "8198e1c1a1692d75c2155613152867fb",
+    "semantic_hash": "8198e1c1a1692d75c2155613152867fb"
+  },
+  "client/src/const.ts": {
+    "mtime": 1762887899.0728686,
+    "seen": 1795378899.7123125,
+    "ast_hash": "1a034a3e7a7742d1a8a643db5b4e7527",
+    "semantic_hash": "1a034a3e7a7742d1a8a643db5b4e7527"
+  },
+  "client/src/contexts/ThemeContext.tsx": {
+    "mtime": 1762784433.6571429,
+    "seen": 1795378899.7123137,
+    "ast_hash": "406ca3330570fa4c4b3e7714c3fac7f8",
+    "semantic_hash": "406ca3330570fa4c4b3e7714c3fac7f8"
+  },
+  "client/src/hooks/useComposition.ts": {
+    "mtime": 1762784433.6651433,
+    "seen": 1795378899.7123146,
+    "ast_hash": "16bbb7a4775b78704034802eb6d8ea5b",
+    "semantic_hash": "16bbb7a4775b78704034802eb6d8ea5b"
+  },
+  "client/src/hooks/useCovidData.ts": {
+    "mtime": 1779743685.459514,
+    "seen": 1795378899.7123153,
+    "ast_hash": "7cda11352b1419b7450b7f7ed06b1ffd",
+    "semantic_hash": "7cda11352b1419b7450b7f7ed06b1ffd"
+  },
+  "client/src/hooks/useEbolaData.ts": {
+    "mtime": 1779743685.442057,
+    "seen": 1795378899.7123165,
+    "ast_hash": "c4bb6b82fe528366a1600e9619b84e21",
+    "semantic_hash": "c4bb6b82fe528366a1600e9619b84e21"
+  },
+  "client/src/hooks/useMobile.tsx": {
+    "mtime": 1762784433.674145,
+    "seen": 1795378899.7123177,
+    "ast_hash": "b8c573c05d1d83956a7ec166c87b8075",
+    "semantic_hash": "b8c573c05d1d83956a7ec166c87b8075"
+  },
+  "client/src/hooks/usePandemicPreferences.ts": {
+    "mtime": 1779743685.5064874,
+    "seen": 1795378899.7123187,
+    "ast_hash": "a011693380c58512f8d3e39b56a4a38b",
+    "semantic_hash": "a011693380c58512f8d3e39b56a4a38b"
+  },
+  "client/src/hooks/usePersistFn.ts": {
+    "mtime": 1762784433.6781461,
+    "seen": 1795378899.7123199,
+    "ast_hash": "693f129cc13fa61de95d481e6f7939c2",
+    "semantic_hash": "693f129cc13fa61de95d481e6f7939c2"
+  },
+  "client/src/hooks/useWestNileData.ts": {
+    "mtime": 1779743685.4235816,
+    "seen": 1795378899.7123208,
+    "ast_hash": "8eceda0fc0a426f4c6dc288e2e7b47e0",
+    "semantic_hash": "8eceda0fc0a426f4c6dc288e2e7b47e0"
+  },
+  "client/src/lib/trpc.ts": {
+    "mtime": 1779725264.1185112,
+    "seen": 1795378899.7123218,
+    "ast_hash": "88a5833ab38c23039b164da1f148b99d",
+    "semantic_hash": "88a5833ab38c23039b164da1f148b99d"
+  },
+  "client/src/lib/utils.ts": {
+    "mtime": 1762784433.6871457,
+    "seen": 1795378899.7123227,
+    "ast_hash": "d9837f38cc05303254571985e3164050",
+    "semantic_hash": "d9837f38cc05303254571985e3164050"
+  },
+  "client/src/main.tsx": {
+    "mtime": 1762888623.681486,
+    "seen": 1795378899.712324,
+    "ast_hash": "1c35d8e7abc943fb3b5291913922f6b0",
+    "semantic_hash": "1c35d8e7abc943fb3b5291913922f6b0"
+  },
+  "client/src/pages/Home.tsx": {
+    "mtime": 1779743685.4172661,
+    "seen": 1795378899.7123246,
+    "ast_hash": "73e0056360325f03cd893d65b055be7c",
+    "semantic_hash": "73e0056360325f03cd893d65b055be7c"
+  },
+  "client/src/pages/NotFound.tsx": {
+    "mtime": 1762784433.6991436,
+    "seen": 1795378899.7123256,
+    "ast_hash": "ee6791f7959d2123bd51b17e94b915a3",
+    "semantic_hash": "ee6791f7959d2123bd51b17e94b915a3"
+  },
+  "client/src/services/dataFetcher.ts": {
+    "mtime": 1779738511.6186628,
+    "seen": 1795378899.7123263,
+    "ast_hash": "cea0b92917fd15ad1a0c5c77fbc43b87",
+    "semantic_hash": "cea0b92917fd15ad1a0c5c77fbc43b87"
+  },
+  "client/src/services/ebolaFetcher.ts": {
+    "mtime": 1779829936.5698657,
+    "seen": 1795378899.7123275,
+    "ast_hash": "aa246dd08d9d80be073ac31a3140c01b",
+    "semantic_hash": "aa246dd08d9d80be073ac31a3140c01b"
+  },
+  "client/src/services/westNileFetcher.ts": {
+    "mtime": 1779829949.9963036,
+    "seen": 1795378899.7123287,
+    "ast_hash": "8da5e85009f5fa6e0933281a20fbb376",
+    "semantic_hash": "8da5e85009f5fa6e0933281a20fbb376"
+  },
+  "client/src/store/covidSlice.ts": {
+    "mtime": 1779721551.272575,
+    "seen": 1795378899.7123294,
+    "ast_hash": "d01ea5a64316708a9da42ef3d43ed8a2",
+    "semantic_hash": "d01ea5a64316708a9da42ef3d43ed8a2"
+  },
+  "client/src/store/hooks.ts": {
+    "mtime": 1762784433.7191541,
+    "seen": 1795378899.7123306,
+    "ast_hash": "159d3c0e677ad4aff114e334583a904f",
+    "semantic_hash": "159d3c0e677ad4aff114e334583a904f"
+  },
+  "client/src/store/pandemicSelectors.ts": {
+    "mtime": 1779721575.5834124,
+    "seen": 1795378899.7123315,
+    "ast_hash": "8d92b63bd5411e78b8a415c581ac58a7",
+    "semantic_hash": "8d92b63bd5411e78b8a415c581ac58a7"
+  },
+  "client/src/store/pandemicSlice.ts": {
+    "mtime": 1779743685.4751017,
+    "seen": 1795378899.7123322,
+    "ast_hash": "f47431c62f2b962899af808a706231bc",
+    "semantic_hash": "f47431c62f2b962899af808a706231bc"
+  },
+  "client/src/store/selectors.ts": {
+    "mtime": 1762784433.7211547,
+    "seen": 1795378899.7123332,
+    "ast_hash": "a04cffb152956df9fb562d5b1a0c5fb3",
+    "semantic_hash": "a04cffb152956df9fb562d5b1a0c5fb3"
+  },
+  "client/src/store/store.ts": {
+    "mtime": 1779721459.8800042,
+    "seen": 1795378899.7123344,
+    "ast_hash": "efc0bbdcc4e0f9706523bca235ab090d",
+    "semantic_hash": "efc0bbdcc4e0f9706523bca235ab090d"
+  },
+  "client/src/types/pandemic.ts": {
+    "mtime": 1779721442.8927224,
+    "seen": 1795378899.7123353,
+    "ast_hash": "e9c51e60e486d5dd1b8002db79f76315",
+    "semantic_hash": "e9c51e60e486d5dd1b8002db79f76315"
+  },
+  "client/src/utils/colorUtils.ts": {
+    "mtime": 1762784433.732153,
+    "seen": 1795378899.7123363,
+    "ast_hash": "76752fadaa8bc9c9ba3d160652908e10",
+    "semantic_hash": "76752fadaa8bc9c9ba3d160652908e10"
+  },
+  "components.json": {
+    "mtime": 1762784433.8570583,
+    "seen": 1795378899.7123375,
+    "ast_hash": "1f7868026879884257e963412b915a3e",
+    "semantic_hash": "1f7868026879884257e963412b915a3e"
+  },
+  "package.json": {
+    "mtime": 1779743742.3860767,
+    "seen": 1795378899.7123392,
+    "ast_hash": "d3749b298dc920eaea7430c114c2b5bb",
+    "semantic_hash": "d3749b298dc920eaea7430c114c2b5bb"
+  },
+  "tsconfig.json": {
+    "mtime": 1779743943.0499032,
+    "seen": 1795378899.71234,
+    "ast_hash": "63aa62e12f2195b68e82a233b253c695",
+    "semantic_hash": "63aa62e12f2195b68e82a233b253c695"
+  },
+  "vercel.json": {
+    "mtime": 1763063466.205692,
+    "seen": 1795378899.7123413,
+    "ast_hash": "010fdc9eb7c8a56ac569a137880d8f07",
+    "semantic_hash": "010fdc9eb7c8a56ac569a137880d8f07"
+  },
+  "vite.config.ts": {
+    "mtime": 1762785305.9388497,
+    "seen": 1795378899.7123423,
+    "ast_hash": "d5ab46beafba94640a26185a43754830",
+    "semantic_hash": "d5ab46beafba94640a26185a43754830"
+  },
+  "vitest.config.ts": {
+    "mtime": 1762784433.901059,
+    "seen": 1795378899.7123432,
+    "ast_hash": "fe2a5e6491b57297923b722c464c7006",
+    "semantic_hash": "fe2a5e6491b57297923b722c464c7006"
+  },
+  "client/index.html": {
+    "mtime": 1762784433.2884138,
+    "seen": 1795378899.7123444,
+    "ast_hash": "335aaa166c73af7a6b83a37bef1d8a81",
+    "semantic_hash": "335aaa166c73af7a6b83a37bef1d8a81"
+  },
+  "todo.md": {
+    "mtime": 1780633812.8411717,
+    "seen": 1795378899.7123451,
+    "ast_hash": "b19ca1cd5bfe617c8e32ecac7243e767",
+    "semantic_hash": "b19ca1cd5bfe617c8e32ecac7243e767"
+  },
+  "client/public/logo.png": {
+    "mtime": 1762887103.6402717,
+    "seen": 1795378899.7123463,
+    "ast_hash": "7b11ae4a40c8aa242cb83311e370169b",
+    "semantic_hash": "7b11ae4a40c8aa242cb83311e370169b"
+  }
+}

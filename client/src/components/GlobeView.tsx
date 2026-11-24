@@ -127,7 +127,7 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const geoJsonUrl =
-    'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+    '/ne_110m_admin_0_countries.geojson';
   const config = getPandemicConfig(pandemic);
   const { dark, light } = getColorScaleEndpoints(pandemic);
   const darkRgb = hexToRgb(dark);
@@ -228,13 +228,13 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
         // Set globe properties
         globe
           .globeImageUrl(
-            '//unpkg.com/three-globe/example/img/earth-night.jpg'
+            '//unpkg.com/three-globe@2.45.0/example/img/earth-night.jpg'
           )
           .bumpImageUrl(
-            '//unpkg.com/three-globe/example/img/earth-topology.png'
+            '//unpkg.com/three-globe@2.45.0/example/img/earth-topology.png'
           )
           .backgroundImageUrl(
-            '//unpkg.com/three-globe/example/img/night-sky.png'
+            '//unpkg.com/three-globe@2.45.0/example/img/night-sky.png'
           )
           .width(containerRef.current.clientWidth)
           .height(containerRef.current.clientHeight);
@@ -244,8 +244,9 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
         const features = (geoData.features || []).map((feature: any) => {
           const props = feature.properties || {};
           // Resolve ISO2 code — Natural Earth uses ISO_A2 (uppercase); -99 means no code
-          const rawCode = props.ISO_A2 || props.iso_a2 || props.ISO_A3?.slice(0, 2) || '';
-          const code = rawCode && rawCode !== '-99' ? rawCode : (props.ADM0_A3 || 'XX');
+          // ISO_A2 is -99 for France, Norway, Kosovo...; ISO_A2_EH is Natural Earth's patched code
+          const code = [props.ISO_A2, props.iso_a2, props.ISO_A2_EH].find(c => c && c !== '-99')
+            || props.ADM0_A3 || 'XX';
           // Resolve country name — Natural Earth uses NAME or ADMIN (uppercase)
           const resolvedName = props.NAME || props.ADMIN || props.name_long || props.name || props.SOVEREIGNT || '';
           return {
@@ -357,6 +358,7 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
       // Cleanup globe instance
       if (globeRef.current) {
         try {
+          globeRef.current._destructor?.(); // stops the render loop and frees the WebGL context
           globeRef.current = null;
         } catch (e) {
           console.warn('Cleanup error:', e);

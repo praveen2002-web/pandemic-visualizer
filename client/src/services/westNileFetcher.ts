@@ -94,7 +94,8 @@ class WestNileFetcher {
       const cases = row.cases ?? 0;
       const deaths = row.deaths ?? 0;
       const fatalityRate = cases > 0 ? (deaths / cases) * 100 : 0;
-      const code = row.countryInfo?.iso2 ?? row.country.slice(0, 2).toUpperCase();
+      const code = row.countryInfo?.iso2;
+      if (!code) continue; // never guess a code: it could overwrite a real country
 
       countriesData[code] = {
         country: row.country,

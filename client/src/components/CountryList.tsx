@@ -106,8 +106,13 @@ export const CountryList: React.FC = () => {
     }
   };
 
-  const maxCases  = Math.max(...countries.map(c => c.cases  ?? 0), 1);
-  const maxDeaths = Math.max(...countries.map(c => c.deaths ?? 0), 1);
+  const { maxCases, maxDeaths } = countries.reduce(
+    (maxima, country) => ({
+      maxCases: Math.max(maxima.maxCases, country.cases ?? 0),
+      maxDeaths: Math.max(maxima.maxDeaths, country.deaths ?? 0),
+    }),
+    { maxCases: 1, maxDeaths: 1 }
+  );
 
   const accentColor = config.accentColor;
 

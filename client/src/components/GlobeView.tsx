@@ -6,28 +6,27 @@ import {
 } from '@/store/pandemicSelectors';
 import { setSelectedCountry } from '@/store/pandemicSlice';
 import {
-  getPandemicConfig,
   getColorScaleEndpoints,
+  getMetricLabel,
   MetricType,
   NormalizationType,
 } from '@/config/pandemicConfig';
-import type { PandemicType } from '@/types/pandemic';
+import type { PandemicCountryData, PandemicType } from '@/types/pandemic';
 
-interface CountryMetrics {
-  [code: string]: number;
-}
+type CountryMetrics = Record<string, number>;
 
 export interface GlobeViewProps {
   metric?: MetricType;
   normalization?: NormalizationType;
   pandemic: PandemicType;
+  onMetricRangeChange?: (min: number, max: number) => void;
 }
 
 /**
  * Get the metric value from country data based on metric type
  */
 function getMetricValue(
-  country: any,
+  country: PandemicCountryData,
   metric: MetricType
 ): number {
   if (!country) return 0;
@@ -102,23 +101,40 @@ function hexToRgb(hex: string): [number, number, number] {
     : [0, 0, 0];
 }
 
+function escapeHtml(value: string): string {
+  const entities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return value.replace(/[&<>"']/g, character => entities[character]);
+}
+
 export const GlobeView: React.FC<GlobeViewProps> = ({
   metric = 'cases',
   normalization = 'log',
   pandemic,
+  onMetricRangeChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<any>(null);
-  const resizeListenerRef = useRef<(() => void) | null>(null);
   const dispatch = useAppDispatch();
 
   const countries = useAppSelector(selectActiveCountries);
   const selectedCountry = useAppSelector(selectSelectedCountryCode);
 
- 
   const countriesRef = useRef(countries);
+  const selectedCountryRef = useRef(selectedCountry);
   const metricRef = useRef(metric);
-  
+  const minMetricRef = useRef(0);
+  const maxMetricRef = useRef(1);
+  const normalizationRef = useRef(normalization);
+  const colorsRef = useRef({
+    dark: [0, 0, 0] as [number, number, number],
+    light: [255, 255, 255] as [number, number, number],
+  });
   const geoNameMapRef = useRef<Record<string, string>>({});
 
   const [metrics, setMetrics] = useState<CountryMetrics>({});
@@ -126,18 +142,19 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   const [maxMetric, setMaxMetric] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
-  const geoJsonUrl =
-    '/ne_110m_admin_0_countries.geojson';
-  const config = getPandemicConfig(pandemic);
+  const geoJsonUrl = '/ne_110m_admin_0_countries.geojson';
   const { dark, light } = getColorScaleEndpoints(pandemic);
   const darkRgb = hexToRgb(dark);
   const lightRgb = hexToRgb(light);
 
-  // Keep refs in sync with latest values
-  useEffect(() => { countriesRef.current = countries; }, [countries]);
-  useEffect(() => { metricRef.current = metric; }, [metric]);
+  countriesRef.current = countries;
+  selectedCountryRef.current = selectedCountry;
+  metricRef.current = metric;
+  minMetricRef.current = minMetric;
+  maxMetricRef.current = maxMetric;
+  normalizationRef.current = normalization;
+  colorsRef.current = { dark: darkRgb, light: lightRgb };
 
-  // Helper to build the polygon label — reads from refs so it's always fresh
   const buildLabelFn = () => (d: any) => {
     const code = d.properties?.code;
     const currentCountries = countriesRef.current;
@@ -153,18 +170,18 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
       d.properties?.name ||
       code ||
       '';
+    const safeCountryName = escapeHtml(String(countryName));
     if (!country) {
-      return `<div class="globe-tooltip"><div class="globe-tooltip-name">${countryName}</div></div>`;
+      return `<div class="globe-tooltip"><div class="globe-tooltip-name">${safeCountryName}</div></div>`;
     }
-    const metricLabel = currentMetric === 'fatalityRate' ? 'Fatality Rate' : 'Cases';
-    const metricValue =
-      currentMetric === 'fatalityRate'
-        ? (country.fatalityRate ?? 0).toFixed(1) + '%'
-        : (country.cases ?? 0).toLocaleString();
+    const value = getMetricValue(country, currentMetric);
+    const metricValue = ['fatalityRate', 'vaccinationPercentage'].includes(currentMetric)
+      ? `${value.toFixed(1)}%`
+      : value.toLocaleString();
     return `<div class="globe-tooltip">
-      <div class="globe-tooltip-name">${countryName}</div>
-      <div>${metricLabel}: ${metricValue}</div>
-      <div>Deaths: ${(country.deaths ?? 0).toLocaleString()}</div>
+      <div class="globe-tooltip-name">${safeCountryName}</div>
+      <div>${escapeHtml(getMetricLabel(currentMetric))}: ${escapeHtml(metricValue)}</div>
+      <div>Deaths: ${escapeHtml((country.deaths ?? 0).toLocaleString())}</div>
     </div>`;
   };
 
@@ -187,45 +204,41 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
     setMetrics(newMetrics);
     setMinMetric(min === Infinity ? 0 : min);
     setMaxMetric(max === -Infinity ? 1 : max);
+    onMetricRangeChange?.(min === Infinity ? 0 : min, max === -Infinity ? 1 : max);
 
     // Re-apply label so it picks up fresh country data
     if (globeRef.current) {
       globeRef.current.polygonLabel(buildLabelFn());
     }
-  }, [countries, metric]);
+  }, [countries, metric, onMetricRangeChange]);
 
-  // Load GeoJSON and initialize globe
+  // Initialize one globe instance for this mount; data updates only affect its layers.
   useEffect(() => {
     if (!containerRef.current) return;
+
+    let cancelled = false;
+    let globe: any;
+    let handleResize: (() => void) | undefined;
 
     const initGlobe = async () => {
       try {
         setError(null);
 
-        // Dynamically import globe.gl
-        const Globe = (await import('globe.gl')).default;
-
-        // Fetch GeoJSON with CORS
-        const response = await fetch(geoJsonUrl, {
-          mode: 'cors',
-          headers: {
-            Accept: 'application/json',
-          },
-        });
+        const [Globe, response] = await Promise.all([
+          import('globe.gl'),
+          fetch(geoJsonUrl, { headers: { Accept: 'application/json' } }),
+        ]);
 
         if (!response.ok) {
           throw new Error(`Failed to fetch GeoJSON: ${response.statusText}`);
         }
 
         const geoData = await response.json();
+        if (cancelled || !containerRef.current) return;
 
-        if (!containerRef.current) return;
-
-        // Create globe instance
-        const globe = new Globe(containerRef.current);
+        globe = new Globe.default(containerRef.current);
         globeRef.current = globe;
 
-        // Set globe properties
         globe
           .globeImageUrl(
             '//unpkg.com/three-globe@2.45.0/example/img/earth-night.jpg'
@@ -239,15 +252,11 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
           .width(containerRef.current.clientWidth)
           .height(containerRef.current.clientHeight);
 
-        // Process GeoJSON features
-        // Natural Earth GeoJSON uses uppercase property names: NAME, ADMIN, ISO_A2, ISO_A3
         const features = (geoData.features || []).map((feature: any) => {
           const props = feature.properties || {};
-          // Resolve ISO2 code — Natural Earth uses ISO_A2 (uppercase); -99 means no code
-          // ISO_A2 is -99 for France, Norway, Kosovo...; ISO_A2_EH is Natural Earth's patched code
-          const code = [props.ISO_A2, props.iso_a2, props.ISO_A2_EH].find(c => c && c !== '-99')
-            || props.ADM0_A3 || 'XX';
-          // Resolve country name — Natural Earth uses NAME or ADMIN (uppercase)
+          const code = [props.ISO_A2_EH, props.ISO_A2, props.iso_a2]
+            .find(value => typeof value === 'string' && value && value !== '-99')
+            ?.toUpperCase() || props.ADM0_A3 || 'XX';
           const resolvedName = props.NAME || props.ADMIN || props.name_long || props.name || props.SOVEREIGNT || '';
           return {
             ...feature,
@@ -259,7 +268,6 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
           };
         });
 
-        // Build a code→name map from GeoJSON for tooltip fallback
         const nameMap: Record<string, string> = {};
         for (const f of features) {
           if (f.properties.code && f.properties.name) {
@@ -268,34 +276,29 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
         }
         geoNameMapRef.current = nameMap;
 
-        // Add polygons
         globe.polygonsData(features);
-
-        // Set polygon colors
         globe.polygonCapColor((d: any) => {
           const code = d.properties?.code;
-          const value = metrics[code] ?? 0;
+          const country = countriesRef.current[code];
+          const value = country ? getMetricValue(country, metricRef.current) : 0;
           const normalized = normalizeValue(
             value,
-            minMetric,
-            maxMetric,
-            normalization
+            minMetricRef.current,
+            maxMetricRef.current,
+            normalizationRef.current
           );
-          return interpolateColor(normalized, darkRgb, lightRgb);
+          return interpolateColor(normalized, colorsRef.current.dark, colorsRef.current.light);
         });
 
         globe.polygonSideColor(() => 'rgba(0, 0, 0, 0.3)');
         globe.polygonStrokeColor(() => 'rgba(255, 255, 255, 0.1)');
 
-        // Set polygon altitude
         globe.polygonAltitude((d: any) => {
-          return d.properties?.code === selectedCountry ? 0.12 : 0.01;
+          return d.properties?.code === selectedCountryRef.current ? 0.12 : 0.01;
         });
 
-        // Set polygon labels — uses buildLabelFn so it reads from refs (no stale closure)
         globe.polygonLabel(buildLabelFn());
 
-        // Add click handler
         globe.onPolygonClick((d: any) => {
           const code = d.properties?.code;
           if (code) {
@@ -308,7 +311,6 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
           }
         });
 
-        // Enable auto-rotate
         try {
           const controls = globe.controls();
           if (controls) {
@@ -319,76 +321,73 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
           console.warn('Auto-rotate setup failed:', e);
         }
 
-        // Handle window resize
-        const handleResize = () => {
-          if (containerRef.current && globeRef.current) {
+        handleResize = () => {
+          if (containerRef.current && globeRef.current === globe) {
             const width = containerRef.current.clientWidth;
             const height = containerRef.current.clientHeight;
             if (width > 0 && height > 0) {
-              globeRef.current.width(width).height(height);
+              globe.width(width).height(height);
             }
           }
         };
 
         window.addEventListener('resize', handleResize);
-        resizeListenerRef.current = handleResize;
-
-        return () => {
-          window.removeEventListener('resize', handleResize);
-        };
       } catch (err) {
+        if (cancelled) return;
+        if (globe) {
+          try {
+            globe._destructor?.();
+          } catch (cleanupError) {
+            console.warn('Globe cleanup failed:', cleanupError);
+          }
+          if (globeRef.current === globe) globeRef.current = null;
+        }
         const errorMsg = err instanceof Error ? err.message : String(err);
         console.error('Globe initialization error:', errorMsg);
         setError(`Failed to load globe: ${errorMsg}`);
-        return () => {}; // Return empty cleanup if error
       }
     };
 
-    const cleanupPromise = initGlobe();
+    void initGlobe();
 
     return () => {
-      cleanupPromise.then(cleanup => cleanup?.());
-
-      // Remove resize listener if it was set
-      if (resizeListenerRef.current) {
-        window.removeEventListener('resize', resizeListenerRef.current);
-        resizeListenerRef.current = null;
-      }
-
-      // Cleanup globe instance
-      if (globeRef.current) {
+      cancelled = true;
+      if (handleResize) window.removeEventListener('resize', handleResize);
+      if (globe) {
         try {
-          globeRef.current._destructor?.(); // stops the render loop and frees the WebGL context
-          globeRef.current = null;
-        } catch (e) {
-          console.warn('Cleanup error:', e);
+          globe._destructor?.();
+        } catch (cleanupError) {
+          console.warn('Globe cleanup failed:', cleanupError);
         }
+        if (globeRef.current === globe) globeRef.current = null;
       }
     };
-  }, [dispatch, countries, pandemic]);
+  }, [dispatch]);
 
   // Update colors when metrics change
   useEffect(() => {
     if (globeRef.current) {
       globeRef.current.polygonCapColor((d: any) => {
         const code = d.properties?.code;
-        const value = metrics[code] ?? 0;
+        const country = countriesRef.current[code];
+        const value = country ? getMetricValue(country, metricRef.current) : 0;
         const normalized = normalizeValue(
           value,
-          minMetric,
-          maxMetric,
-          normalization
+          minMetricRef.current,
+          maxMetricRef.current,
+          normalizationRef.current
         );
-        return interpolateColor(normalized, darkRgb, lightRgb);
+        return interpolateColor(normalized, colorsRef.current.dark, colorsRef.current.light);
       });
+      globeRef.current.polygonLabel(buildLabelFn());
     }
-  }, [metrics, minMetric, maxMetric, normalization, darkRgb, lightRgb]);
+  }, [metrics, minMetric, maxMetric, normalization, dark, light, pandemic, metric, countries]);
 
   // Update altitude when selected country changes
   useEffect(() => {
     if (globeRef.current) {
       globeRef.current.polygonAltitude((d: any) => {
-        return d.properties?.code === selectedCountry ? 0.12 : 0.01;
+        return d.properties?.code === selectedCountryRef.current ? 0.12 : 0.01;
       });
     }
   }, [selectedCountry]);
@@ -415,35 +414,52 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
   );
 };
 
-/**
- * Calculate centroid of a polygon
- */
-function getPolygonCentroid(geometry: any): [number, number] {
-  try {
-    if (geometry?.type === 'Polygon' && geometry.coordinates?.[0]) {
-      const coords = geometry.coordinates[0];
-      let lat = 0,
-        lng = 0;
-      for (const coord of coords) {
-        lng += coord[0];
-        lat += coord[1];
-      }
-      return [lng / coords.length, lat / coords.length];
-    } else if (
-      geometry?.type === 'MultiPolygon' &&
-      geometry.coordinates?.[0]?.[0]
-    ) {
-      const coords = geometry.coordinates[0][0];
-      let lat = 0,
-        lng = 0;
-      for (const coord of coords) {
-        lng += coord[0];
-        lat += coord[1];
-      }
-      return [lng / coords.length, lat / coords.length];
-    }
-  } catch (e) {
-    console.warn('Error calculating centroid:', e);
+function getRingCentroid(ring: number[][]): { point: [number, number]; area: number } {
+  let twiceArea = 0;
+  let longitudeSum = 0;
+  let latitudeSum = 0;
+
+  for (let index = 0; index < ring.length; index += 1) {
+    const current = ring[index];
+    const next = ring[(index + 1) % ring.length];
+    const cross = current[0] * next[1] - next[0] * current[1];
+    twiceArea += cross;
+    longitudeSum += (current[0] + next[0]) * cross;
+    latitudeSum += (current[1] + next[1]) * cross;
   }
-  return [0, 0];
+
+  if (Math.abs(twiceArea) < 1e-10) {
+    const mean = ring.reduce(
+      (sum, point) => [sum[0] + point[0], sum[1] + point[1]],
+      [0, 0]
+    );
+    return {
+      point: [mean[0] / ring.length, mean[1] / ring.length],
+      area: 0,
+    };
+  }
+
+  return {
+    point: [longitudeSum / (3 * twiceArea), latitudeSum / (3 * twiceArea)],
+    area: Math.abs(twiceArea) / 2,
+  };
+}
+
+function getPolygonCentroid(geometry: any): [number, number] {
+  const polygons: number[][][] =
+    geometry?.type === 'Polygon'
+      ? [geometry.coordinates?.[0]]
+      : geometry?.type === 'MultiPolygon'
+        ? geometry.coordinates?.map((polygon: number[][][]) => polygon[0]) ?? []
+        : [];
+  const validRings = polygons.filter(
+    ring => Array.isArray(ring) && ring.length >= 3 &&
+      ring.every(point => Number.isFinite(point[0]) && Number.isFinite(point[1]))
+  );
+  if (validRings.length === 0) return [0, 0];
+
+  return validRings
+    .map(getRingCentroid)
+    .reduce((largest, current) => current.area > largest.area ? current : largest)
+    .point;
 }

@@ -13,6 +13,7 @@ export interface GlobalPandemicStats {
   totalDeaths: number;
   totalRecovered?: number; // optional — not available for all pandemics
   activeCases?: number;
+  vaccinationPercentage?: number;
   fatalityRate: number; // deaths / cases, expressed as percentage (0-100)
   lastUpdated: string;
   isFallback?: boolean; // true when live sources failed and a built-in snapshot is shown
@@ -28,7 +29,12 @@ export interface PandemicCountryData {
   deaths: number;
   recovered?: number;
   active?: number;
+  casesPerMillion?: number;
+  deathsPerMillion?: number;
+  testsPerMillion?: number;
+  vaccinationPercentage?: number;
   fatalityRate?: number; // deaths / cases, as percentage
+  population?: number;
   dates?: string[]; // ISO date strings for time-series data
   dailyCases?: number[];
   dailyDeaths?: number[];

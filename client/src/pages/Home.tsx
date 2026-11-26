@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { usePandemicData } from '@/hooks/usePandemicData';
 import { GlobeView } from '@/components/GlobeView';
 import { GlobeLegend } from '@/components/GlobeLegend';
@@ -56,6 +56,10 @@ export default function Home() {
 
   const [minValue, setMinValue] = useState(0);
   const [maxValue, setMaxValue] = useState(1);
+  const handleMetricRangeChange = useCallback((min: number, max: number) => {
+    setMinValue(min);
+    setMaxValue(max);
+  }, []);
 
   // Get active pandemic config
   const config = getPandemicConfig(activePandemic);
@@ -73,7 +77,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur border-b border-slate-700/50 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
@@ -84,7 +88,7 @@ export default function Home() {
                 <h1 className="text-2xl font-bold text-white truncate">
                   Pandemic Visualizer - {config.shortName}
                 </h1>
-                <p className="text-xs text-slate-400">Real-time interactive 3D globe with live statistics</p>
+                <p className="text-xs text-slate-400">Interactive 3D globe with pandemic statistics</p>
               </div>
             </div>
 
@@ -176,7 +180,7 @@ export default function Home() {
       </section>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 flex-1">
         {isLoading && hasNoData ? (
           <div className="flex items-center justify-center h-[calc(100vh-400px)]">
             <div className="text-center">
@@ -205,6 +209,7 @@ export default function Home() {
                 metric={metric}
                 normalization={normalization}
                 pandemic={activePandemic}
+                onMetricRangeChange={handleMetricRangeChange}
               />
             </div>
           </div>
@@ -219,7 +224,7 @@ export default function Home() {
       <CountryDetailModal />
 
       {/* Footer */}
-      <footer className="border-t border-slate-700/50 bg-slate-900/50 backdrop-blur mt-60">
+      <footer className="border-t border-slate-700/50 bg-slate-900/50 backdrop-blur">
         <div className="container mx-auto px-4 py-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
             <div>
@@ -287,7 +292,7 @@ export default function Home() {
                 {activePandemic === 'covid'
                   ? isFallback
                     ? 'Offline snapshot (2023)'
-                    : 'Live data · updates every 2 minutes'
+                    : 'Historical COVID reporting · source checked every 2 minutes'
                   : activePandemic === 'ebola'
                   ? `Dataset last updated: ${ebolaFileMeta.lastUpdated}`
                   : `Dataset last updated: ${westNileFileMeta.lastUpdated}`}

@@ -1,6 +1,7 @@
 /**
  * COVID-19 data fetcher
- * Primary source:  disease.sh (https://disease.sh) – /v3/covid-19
+ * Primary source: disease.sh (https://disease.sh) – /v3/covid-19
+ * Vaccination source: Our World in Data's public vaccination dataset
  * Final fallback:  hardcoded 2023 WHO snapshot data
  *
  * NOTE: Produces GlobalPandemicStats and PandemicCountryData so data lands
@@ -12,6 +13,8 @@ import type { GlobalPandemicStats, PandemicCountryData } from '@/types/pandemic'
 
 // ─── API endpoints ────────────────────────────────────────────────────────────
 const DISEASE_SH = 'https://disease.sh/v3/covid-19';
+const OWID_VACCINATIONS =
+  'https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/vaccinations/vaccinations.json';
 
 // ─── Raw API shapes ───────────────────────────────────────────────────────────
 interface DiseaseShCountry {
@@ -25,6 +28,9 @@ interface DiseaseShCountry {
   population: number;
   casesPerMillion?: number;
   deathsPerMillion?: number;
+  casesPerOneMillion?: number;
+  deathsPerOneMillion?: number;
+  testsPerOneMillion?: number;
 }
 
 interface DiseaseShGlobal {
@@ -34,6 +40,26 @@ interface DiseaseShGlobal {
   active: number;
   tests: number;
   affectedCountries: number;
+  updated?: number;
+}
+
+interface OwidVaccinationPoint {
+  date: string;
+  people_vaccinated_per_hundred?: number | null;
+  people_fully_vaccinated_per_hundred?: number | null;
+}
+
+interface OwidVaccinationCountry {
+  iso_code: string;
+  data?: OwidVaccinationPoint[];
+}
+
+interface DiseaseShHistoricalCountry {
+  country: string;
+  timeline: {
+    cases?: Record<string, number>;
+    deaths?: Record<string, number>;
+  };
 }
 
 // ─── Hardcoded fallback (WHO 2023 cumulative data) ────────────────────────────
@@ -100,8 +126,86 @@ export function normalizeCountry(raw: DiseaseShCountry): PandemicCountryData | n
     deaths: raw.deaths ?? 0,
     recovered: raw.recovered ?? 0,
     active: raw.active ?? 0,
+    casesPerMillion: raw.casesPerOneMillion ?? raw.casesPerMillion,
+    deathsPerMillion: raw.deathsPerOneMillion ?? raw.deathsPerMillion,
+    testsPerMillion: raw.testsPerOneMillion,
+    population: raw.population,
     fatalityRate: Math.round(fatalityRate * 10) / 10,
   };
+}
+
+export function normalizeVaccinations(
+  rows: OwidVaccinationCountry[]
+): Record<string, number> {
+  const vaccinationByIso3: Record<string, number> = {};
+
+  for (const country of rows) {
+    if (
+      !country ||
+      typeof country.iso_code !== 'string' ||
+      !Array.isArray(country.data)
+    ) {
+      continue;
+    }
+    const points = country.data
+      .filter((point): point is OwidVaccinationPoint =>
+        Boolean(point && typeof point.date === 'string')
+      )
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const latest = [...points].reverse().find(point =>
+      Number.isFinite(point.people_fully_vaccinated_per_hundred) ||
+      Number.isFinite(point.people_vaccinated_per_hundred)
+    );
+    const percentage =
+      latest?.people_fully_vaccinated_per_hundred ??
+      latest?.people_vaccinated_per_hundred;
+
+    if (country.iso_code && percentage !== undefined && percentage !== null) {
+      vaccinationByIso3[country.iso_code.toUpperCase()] = percentage;
+    }
+  }
+
+  return vaccinationByIso3;
+}
+
+function countryNameKey(name: string): string {
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const aliases: Record<string, string> = {
+    usa: 'unitedstates',
+    uk: 'unitedkingdom',
+    skorea: 'southkorea',
+  };
+  return aliases[normalized] ?? normalized;
+}
+
+export function normalizeHistorical(
+  rows: DiseaseShHistoricalCountry[]
+): Record<string, Pick<PandemicCountryData, 'dates' | 'dailyCases' | 'dailyDeaths'>> {
+  const result: Record<
+    string,
+    Pick<PandemicCountryData, 'dates' | 'dailyCases' | 'dailyDeaths'>
+  > = {};
+
+  for (const row of rows) {
+    if (!row || typeof row.country !== 'string' || !row.timeline) continue;
+    const dates = Object.keys(row.timeline.cases ?? row.timeline.deaths ?? {}).sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime()
+    );
+    const cases = row.timeline.cases ?? {};
+    const deaths = row.timeline.deaths ?? {};
+
+    result[countryNameKey(row.country)] = {
+      dates,
+      dailyCases: dates.map((date, index) =>
+        index === 0 ? 0 : Math.max(0, (cases[date] ?? 0) - (cases[dates[index - 1]] ?? 0))
+      ),
+      dailyDeaths: dates.map((date, index) =>
+        index === 0 ? 0 : Math.max(0, (deaths[date] ?? 0) - (deaths[dates[index - 1]] ?? 0))
+      ),
+    };
+  }
+
+  return result;
 }
 
 function normalizeGlobal(raw: DiseaseShGlobal): GlobalPandemicStats {
@@ -118,64 +222,138 @@ function normalizeGlobal(raw: DiseaseShGlobal): GlobalPandemicStats {
 
 // ─── Fetcher class ────────────────────────────────────────────────────────────
 class DataFetcher {
-  private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private cache: Map<string, { data: any; timestamp: number; isFallback: boolean }> = new Map();
   private cacheExpiry = 2 * 60 * 1000; // 2 minutes
-  /** true when the last fetch fell back to the built-in 2023 snapshot */
-  usedFallback = false;
+  private vaccinationCache: { data: OwidVaccinationCountry[]; timestamp: number } | null = null;
+  private vaccinationRequest: Promise<OwidVaccinationCountry[] | null> | null = null;
+  private fallbackStatus = { global: false, countries: false };
+  /** True when either COVID endpoint is currently using the built-in snapshot. */
+  get usedFallback(): boolean {
+    return this.fallbackStatus.global || this.fallbackStatus.countries;
+  }
 
   // Try a URL with axios; resolve to null on any error so callers can try next
   private async tryFetch<T>(url: string, timeout = 10000): Promise<T | null> {
     try {
       const res = await axios.get<T>(url, { timeout });
       return res.data ?? null;
-    } catch {
+    } catch (error) {
+      console.warn(`[dataFetcher] Request failed for ${url}:`, error);
       return null;
     }
+  }
+
+  private async fetchVaccinations(): Promise<OwidVaccinationCountry[] | null> {
+    if (this.vaccinationCache && Date.now() - this.vaccinationCache.timestamp < this.cacheExpiry) {
+      return this.vaccinationCache.data;
+    }
+    if (this.vaccinationRequest) return this.vaccinationRequest;
+
+    this.vaccinationRequest = this.tryFetch<OwidVaccinationCountry[]>(OWID_VACCINATIONS)
+      .then(rows => {
+        if (rows && Array.isArray(rows)) {
+          this.vaccinationCache = { data: rows, timestamp: Date.now() };
+          return rows;
+        }
+        if (rows !== null) console.warn('[dataFetcher] Unexpected OWID vaccination response shape');
+        return null;
+      })
+      .finally(() => {
+        this.vaccinationRequest = null;
+      });
+
+    return this.vaccinationRequest;
   }
 
   async fetchGlobalStats(): Promise<GlobalPandemicStats> {
     const cached = this.cache.get('covid-global');
     if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+      this.fallbackStatus.global = cached.isFallback;
       return cached.data;
     }
 
-    const raw = await this.tryFetch<DiseaseShGlobal>(`${DISEASE_SH}/all`);
-    this.usedFallback = !raw;
-    const stats = raw ? normalizeGlobal(raw) : FALLBACK_GLOBAL;
-    this.cache.set('covid-global', { data: stats, timestamp: Date.now() });
+    const [raw, vaccinationRows] = await Promise.all([
+      this.tryFetch<DiseaseShGlobal>(`${DISEASE_SH}/all`),
+      this.fetchVaccinations(),
+    ]);
+    this.fallbackStatus.global = !raw;
+    const globalVaccination = normalizeVaccinations(vaccinationRows ?? []).OWID_WRL;
+    const stats = raw
+      ? {
+          ...normalizeGlobal(raw),
+          ...(globalVaccination !== undefined
+            ? { vaccinationPercentage: globalVaccination }
+            : {}),
+        }
+      : FALLBACK_GLOBAL;
+    this.cache.set('covid-global', {
+      data: stats,
+      timestamp: Date.now(),
+      isFallback: this.fallbackStatus.global,
+    });
     return stats;
   }
 
   async fetchCountriesData(): Promise<Record<string, PandemicCountryData>> {
     const cached = this.cache.get('covid-countries');
     if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+      this.fallbackStatus.countries = cached.isFallback;
       return cached.data;
     }
 
-    const rawList = await this.tryFetch<DiseaseShCountry[]>(`${DISEASE_SH}/countries?allowNull=true`);
+    const [rawList, rawVaccinations, rawHistorical] = await Promise.all([
+      this.tryFetch<DiseaseShCountry[]>(`${DISEASE_SH}/countries?allowNull=true`),
+      this.fetchVaccinations(),
+      this.tryFetch<DiseaseShHistoricalCountry[]>(`${DISEASE_SH}/historical?lastdays=30`),
+    ]);
 
     let result: Record<string, PandemicCountryData>;
     if (rawList && Array.isArray(rawList) && rawList.length > 0) {
+      const vaccinationByIso3 = normalizeVaccinations(
+        Array.isArray(rawVaccinations) ? rawVaccinations : []
+      );
+      const historicalByCountry = normalizeHistorical(
+        Array.isArray(rawHistorical) ? rawHistorical : []
+      );
       result = {};
       for (const country of rawList) {
         const normalized = normalizeCountry(country);
-        if (normalized) result[normalized.countryCode] = normalized;
+        if (!normalized) continue;
+
+        const iso3 = country.countryInfo?.iso3?.toUpperCase();
+        const vaccinationPercentage = iso3 ? vaccinationByIso3[iso3] : undefined;
+        const historical = historicalByCountry[countryNameKey(country.country)];
+        result[normalized.countryCode] = {
+          ...normalized,
+          ...(vaccinationPercentage !== undefined ? { vaccinationPercentage } : {}),
+          ...(historical ? {
+            dates: historical.dates,
+            dailyCases: historical.dailyCases,
+            dailyDeaths: historical.dailyDeaths,
+          } : {}),
+        };
       }
-      this.usedFallback = false;
+      this.fallbackStatus.countries = false;
     } else {
       console.warn('[dataFetcher] API failed — using fallback COVID data');
       result = Object.fromEntries(
         Object.entries(FALLBACK_COUNTRIES).map(([k, c]) => [k, { ...c, active: c.cases - c.deaths - (c.recovered ?? 0) }])
       );
-      this.usedFallback = true;
+      this.fallbackStatus.countries = true;
     }
 
-    this.cache.set('covid-countries', { data: result, timestamp: Date.now() });
+    this.cache.set('covid-countries', {
+      data: result,
+      timestamp: Date.now(),
+      isFallback: this.fallbackStatus.countries,
+    });
     return result;
   }
 
   clearCache(): void {
     this.cache.clear();
+    this.vaccinationCache = null;
+    this.fallbackStatus = { global: false, countries: false };
   }
 }
 

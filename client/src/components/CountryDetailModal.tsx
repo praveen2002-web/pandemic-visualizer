@@ -4,7 +4,7 @@ import { selectSelectedCountryData } from '@/store/pandemicSelectors';
 import { setSelectedCountry } from '@/store/pandemicSlice';
 import { formatNumber, formatPercentage } from '../utils/colorUtils';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { X, TrendingUp, Users, Skull, Heart, Syringe, Activity } from 'lucide-react';
+import { X, TrendingUp, Skull, Heart, Syringe, Activity } from 'lucide-react';
 
 export const CountryDetailModal: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -27,6 +27,7 @@ export const CountryDetailModal: React.FC = () => {
     deaths: location.deaths ?? 0,
     recovered: location.recovered ?? 0,
     active: location.active ?? 0,
+    vaccinationPercentage: location.vaccinationPercentage,
     fatalityRate: location.fatalityRate ?? 0,
   };
 
@@ -117,6 +118,18 @@ export const CountryDetailModal: React.FC = () => {
                     Active Cases
                   </p>
                   <p className="text-2xl font-bold text-yellow-400">{formatNumber(safeLocation.active)}</p>
+                </div>
+              )}
+
+              {safeLocation.vaccinationPercentage !== undefined && (
+                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 hover:bg-cyan-500/15 transition-colors">
+                  <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+                    <Syringe className="w-3 h-3" />
+                    Fully Vaccinated
+                  </p>
+                  <p className="text-2xl font-bold text-cyan-400">
+                    {safeLocation.vaccinationPercentage.toFixed(1)}%
+                  </p>
                 </div>
               )}
             </div>

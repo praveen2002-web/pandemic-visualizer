@@ -84,6 +84,17 @@ export const GlobalStats: React.FC = () => {
     });
   }
 
+  if (activePandemic === 'covid' && globalStats.vaccinationPercentage !== undefined) {
+    stats.push({
+      label: 'Fully Vaccinated',
+      value: `${globalStats.vaccinationPercentage.toFixed(1)}%`,
+      icon: Syringe,
+      color: 'text-cyan-400',
+      bgColor: 'bg-cyan-500/10',
+      borderColor: 'border-cyan-500/30',
+    });
+  }
+
   return (
     <div className="bg-slate-900/50 backdrop-blur border border-slate-700 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
@@ -121,7 +132,8 @@ export const GlobalStats: React.FC = () => {
 
       <div className="mt-6 pt-4 border-t border-slate-700">
         <p className="text-xs text-slate-400">
-          Last updated: {globalStats.lastUpdated ? new Date(globalStats.lastUpdated).toLocaleString() : 'N/A'}
+          {globalStats.isFallback ? 'Snapshot date' : 'Source checked'}:{' '}
+          {globalStats.lastUpdated ? new Date(globalStats.lastUpdated).toLocaleString() : 'N/A'}
         </p>
       </div>
     </div>

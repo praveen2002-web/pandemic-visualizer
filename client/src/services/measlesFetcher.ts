@@ -165,7 +165,6 @@ class MeaslesFetcher {
   async fetchMeaslesSeries(iso2: string): Promise<MeaslesYear[]> {
     return (await this.load()).series[iso2] ?? [];
   }
-
   async fetchGlobalStats(): Promise<GlobalPandemicStats> {
     const { countries, latestYear, totalDeaths, deathsCoverage } = await this.load();
     return {

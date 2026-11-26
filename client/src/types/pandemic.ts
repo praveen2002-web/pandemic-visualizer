@@ -3,7 +3,7 @@
  * Used across COVID-19, Ebola, and West Nile Virus
  */
 
-export type PandemicType = 'covid' | 'ebola' | 'westnile';
+export type PandemicType = 'covid' | 'ebola' | 'westnile' | 'measles';
 
 /**
  * Global statistics for a pandemic
@@ -11,12 +11,14 @@ export type PandemicType = 'covid' | 'ebola' | 'westnile';
 export interface GlobalPandemicStats {
   totalCases: number;
   totalDeaths: number;
-  totalRecovered?: number; // optional — not available for all pandemics
+  totalRecovered?: number; // optional - not available for all pandemics
   activeCases?: number;
   vaccinationPercentage?: number;
   fatalityRate: number; // deaths / cases, expressed as percentage (0-100)
   lastUpdated: string;
   isFallback?: boolean; // true when live sources failed and a built-in snapshot is shown
+  latestYear?: number; // yearly datasets (measles): most recent reporting year
+  deathsCoverage?: string; // measles: which countries and years totalDeaths covers
 }
 
 /**
@@ -26,7 +28,7 @@ export interface PandemicCountryData {
   country: string;
   countryCode: string; // ISO alpha-2 where available, fallback to region code
   cases: number;
-  deaths: number;
+  deaths?: number; // undefined = no death data (never show as 0)
   recovered?: number;
   active?: number;
   casesPerMillion?: number;

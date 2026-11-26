@@ -127,6 +127,7 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
 
   const countriesRef = useRef(countries);
   const selectedCountryRef = useRef(selectedCountry);
+  const pandemicRef = useRef(pandemic);
   const metricRef = useRef(metric);
   const minMetricRef = useRef(0);
   const maxMetricRef = useRef(1);
@@ -149,6 +150,7 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
 
   countriesRef.current = countries;
   selectedCountryRef.current = selectedCountry;
+  pandemicRef.current = pandemic;
   metricRef.current = metric;
   minMetricRef.current = minMetric;
   maxMetricRef.current = maxMetric;
@@ -175,13 +177,15 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
       return `<div class="globe-tooltip"><div class="globe-tooltip-name">${safeCountryName}</div></div>`;
     }
     const value = getMetricValue(country, currentMetric);
-    const metricValue = ['fatalityRate', 'vaccinationPercentage'].includes(currentMetric)
+    const metricValue = currentMetric === 'deaths' && country.deaths === undefined
+      ? 'N/A'
+      : ['fatalityRate', 'vaccinationPercentage'].includes(currentMetric)
       ? `${value.toFixed(1)}%`
       : value.toLocaleString();
     return `<div class="globe-tooltip">
       <div class="globe-tooltip-name">${safeCountryName}</div>
       <div>${escapeHtml(getMetricLabel(currentMetric))}: ${escapeHtml(metricValue)}</div>
-      <div>Deaths: ${escapeHtml((country.deaths ?? 0).toLocaleString())}</div>
+      <div>Deaths: ${escapeHtml(country.deaths?.toLocaleString() ?? 'N/A')}</div>
     </div>`;
   };
 
@@ -280,6 +284,10 @@ export const GlobeView: React.FC<GlobeViewProps> = ({
         globe.polygonCapColor((d: any) => {
           const code = d.properties?.code;
           const country = countriesRef.current[code];
+          // Measles deaths exist for few countries: grey out the rest instead of colouring them as 0
+          if (pandemicRef.current === 'measles' && metricRef.current === 'deaths' && country?.deaths === undefined) {
+            return 'rgb(71, 85, 105)';
+          }
           const value = country ? getMetricValue(country, metricRef.current) : 0;
           const normalized = normalizeValue(
             value,

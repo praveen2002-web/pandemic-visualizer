@@ -27,7 +27,7 @@ const COOKIE_OPTIONS = {
   sameSite: 'lax' as const,
 };
 
-const VALID_PANDEMICS: PandemicType[] = ['covid', 'ebola', 'westnile'];
+const VALID_PANDEMICS: PandemicType[] = ['covid', 'ebola', 'westnile', 'measles'];
 const VALID_VIEWS     = ['globe', 'list'] as const;
 const VALID_NORMS: NormalizationType[] = ['linear', 'log'];
 

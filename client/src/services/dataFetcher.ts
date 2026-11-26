@@ -335,9 +335,9 @@ class DataFetcher {
       }
       this.fallbackStatus.countries = false;
     } else {
-      console.warn('[dataFetcher] API failed — using fallback COVID data');
+      console.warn('[dataFetcher] API failed - using fallback COVID data');
       result = Object.fromEntries(
-        Object.entries(FALLBACK_COUNTRIES).map(([k, c]) => [k, { ...c, active: c.cases - c.deaths - (c.recovered ?? 0) }])
+        Object.entries(FALLBACK_COUNTRIES).map(([k, c]) => [k, { ...c, active: c.cases - (c.deaths ?? 0) - (c.recovered ?? 0) }])
       );
       this.fallbackStatus.countries = true;
     }

@@ -24,7 +24,7 @@ export const CountryDetailModal: React.FC = () => {
     country: location.country || 'Unknown Location',
     countryCode: location.countryCode || 'N/A',
     cases: location.cases ?? 0,
-    deaths: location.deaths ?? 0,
+    deaths: location.deaths,
     recovered: location.recovered ?? 0,
     active: location.active ?? 0,
     vaccinationPercentage: location.vaccinationPercentage,
@@ -85,7 +85,7 @@ export const CountryDetailModal: React.FC = () => {
                   <Skull className="w-3 h-3" />
                   Deaths
                 </p>
-                <p className="text-2xl font-bold text-red-400">{formatNumber(safeLocation.deaths)}</p>
+                <p className="text-2xl font-bold text-red-400">{safeLocation.deaths !== undefined ? formatNumber(safeLocation.deaths) : 'N/A'}</p>
               </div>
 
               {/* Fatality Rate */}

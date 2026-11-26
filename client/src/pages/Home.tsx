@@ -13,14 +13,14 @@ import {
   selectActiveLastFetch,
   selectActiveGlobalStats,
 } from '@/store/pandemicSelectors';
-import { Globe, List, AlertCircle, Loader } from 'lucide-react';
+import { Globe, List, AlertCircle, Loader, Minus, Plus } from 'lucide-react';
 import { getPandemicConfig } from '@/config/pandemicConfig';
 import type { PandemicType } from '@/types/pandemic';
 import { ebolaFetcher } from '@/services/ebolaFetcher';
 import { westNileFetcher } from '@/services/westNileFetcher';
 import { usePandemicPreferences } from '@/hooks/usePandemicPreferences';
 
-// Metadata parsed from the data filenames — drives source attribution in the footer
+// Metadata parsed from the data filenames - drives source attribution in the footer
 const ebolaFileMeta = ebolaFetcher.getFileMeta();
 const westNileFileMeta = westNileFetcher.getFileMeta();
 
@@ -56,6 +56,7 @@ export default function Home() {
 
   const [minValue, setMinValue] = useState(0);
   const [maxValue, setMaxValue] = useState(1);
+  const [footerCollapsed, setFooterCollapsed] = useState(false);
   const handleMetricRangeChange = useCallback((min: number, max: number) => {
     setMinValue(min);
     setMaxValue(max);
@@ -74,6 +75,7 @@ export default function Home() {
     { id: 'covid', label: 'COVID-19' },
     { id: 'ebola', label: 'Ebola' },
     { id: 'westnile', label: 'West Nile' },
+    { id: 'measles', label: 'Measles' },
   ];
 
   return (
@@ -120,7 +122,7 @@ export default function Home() {
                 onClick={() => setViewMode('globe')}
                 className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 ${
                   viewMode === 'globe'
-                    ? 'bg-red-600 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -131,7 +133,7 @@ export default function Home() {
                 onClick={() => setViewMode('list')}
                 className={`px-4 py-2 rounded-md transition-all flex items-center gap-2 ${
                   viewMode === 'list'
-                    ? 'bg-red-600 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -189,7 +191,7 @@ export default function Home() {
             </div>
           </div>
         ) : viewMode === 'globe' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-400px)]">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[calc(100vh-400px)]">
             {/* Legend Sidebar */}
             <div className="lg:col-span-1 flex flex-col gap-4">
               <GlobeLegend
@@ -226,79 +228,121 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-700/50 bg-slate-900/50 backdrop-blur">
         <div className="container mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
-            <div>
-              <h3 className="font-semibold text-white mb-2">Data Sources</h3>
-              <ul className="text-sm text-slate-400 space-y-1">
-                {activePandemic === 'covid' && (
-                  <>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              aria-controls="footer-info-panel"
+              aria-expanded={!footerCollapsed}
+              onClick={() => setFooterCollapsed(collapsed => !collapsed)}
+              className="mb-2 flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
+            >
+              {footerCollapsed ? <Plus className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+              {footerCollapsed ? 'Expand' : 'Collapse'}
+            </button>
+          </div>
+
+          {/* hidden sits on a wrapper because the grid class would override it */}
+          <div id="footer-info-panel" hidden={footerCollapsed}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+              <div>
+                <h3 className="font-semibold text-white mb-2">Data Sources</h3>
+                <ul className="text-sm text-slate-400 space-y-1">
+                  {activePandemic === 'covid' && (
+                    <>
+                      <li>
+                        <a
+                          href="https://disease.sh"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-[#60C1E5] transition-colors"
+                        >
+                          disease.sh
+                        </a>
+                      </li>
+                      <li>
+                        <a
+                          href="https://ourworldindata.org"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-[#60C1E5] transition-colors"
+                        >
+                          Our World in Data
+                        </a>
+                      </li>
+                    </>
+                  )}
+                  {activePandemic === 'ebola' && (
                     <li>
                       <a
-                        href="https://disease.sh"
+                        href={`https://${ebolaFileMeta.dataSource}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-blue-400 transition-colors"
+                        className="hover:text-red-400 transition-colors"
                       >
-                        disease.sh
+                        {ebolaFileMeta.dataSource}
                       </a>
                     </li>
+                  )}
+                  {activePandemic === 'westnile' && (
                     <li>
                       <a
-                        href="https://ourworldindata.org"
+                        href={`https://${westNileFileMeta.dataSource}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-blue-400 transition-colors"
+                        className="hover:text-amber-400 transition-colors"
                       >
-                        Our World in Data
+                        {westNileFileMeta.dataSource}
                       </a>
                     </li>
-                  </>
-                )}
-                {activePandemic === 'ebola' && (
-                  <li>
-                    <a
-                      href={`https://${ebolaFileMeta.dataSource}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-red-400 transition-colors"
-                    >
-                      {ebolaFileMeta.dataSource}
-                    </a>
-                  </li>
-                )}
-                {activePandemic === 'westnile' && (
-                  <li>
-                    <a
-                      href={`https://${westNileFileMeta.dataSource}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-amber-400 transition-colors"
-                    >
-                      {westNileFileMeta.dataSource}
-                    </a>
-                  </li>
-                )}
-              </ul>
-            </div>
+                  )}
+                  {activePandemic === 'measles' && (
+                    <li>
+                      <a
+                        href="https://ourworldindata.org/grapher/reported-cases-of-measles"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-purple-400 transition-colors"
+                      >
+                        Our World in Data (WHO)
+                      </a>
+                    </li>
+                  )}
+                  {activePandemic === 'measles' && (
+                    <li>
+                      <a
+                        href="https://ourworldindata.org/grapher/measles-cases-and-death"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-purple-400 transition-colors"
+                      >
+                        Our World in Data (cases and deaths)
+                      </a>
+                    </li>
+                  )}
+                </ul>
+              </div>
 
-            <div>
-              <h3 className="font-semibold text-white mb-2">About {config.name}</h3>
-              <p className="text-sm text-slate-400">{config.description}</p>
-            </div>
+              <div>
+                <h3 className="font-semibold text-white mb-2">About {config.name}</h3>
+                <p className="text-sm text-slate-400">{config.description}</p>
+              </div>
 
-            <div>
-              <h3 className="font-semibold text-white mb-2">Information</h3>
-              <p className="text-sm text-slate-400">
-                {activePandemic === 'covid'
-                  ? isFallback
-                    ? 'Offline snapshot (2023)'
-                    : 'Historical COVID reporting · source checked every 2 minutes'
-                  : activePandemic === 'ebola'
-                  ? `Dataset last updated: ${ebolaFileMeta.lastUpdated}`
-                  : `Dataset last updated: ${westNileFileMeta.lastUpdated}`}
-                {'. '}Loaded:{' '}
-                {lastFetch ? new Date(lastFetch).toLocaleTimeString() : 'N/A'}
-              </p>
+              <div>
+                <h3 className="font-semibold text-white mb-2">Information</h3>
+                <p className="text-sm text-slate-400">
+                  {activePandemic === 'covid'
+                    ? isFallback
+                      ? 'Offline snapshot (2023)'
+                      : 'Historical COVID reporting · source checked every 2 minutes'
+                    : activePandemic === 'ebola'
+                    ? `Dataset last updated: ${ebolaFileMeta.lastUpdated}`
+                    : activePandemic === 'measles'
+                    ? 'Cases: latest reported year per country. Deaths: all recorded years, where available'
+                    : `Dataset last updated: ${westNileFileMeta.lastUpdated}`}
+                  {'. '}Loaded:{' '}
+                  {lastFetch ? new Date(lastFetch).toLocaleTimeString() : 'N/A'}
+                </p>
+              </div>
             </div>
           </div>
 

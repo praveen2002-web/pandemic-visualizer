@@ -4,6 +4,7 @@ import { setAllPandemicData, setLoading, setError } from '../store/pandemicSlice
 import { dataFetcher } from '../services/dataFetcher';
 import { ebolaFetcher } from '../services/ebolaFetcher';
 import { westNileFetcher } from '../services/westNileFetcher';
+import { measlesFetcher } from '../services/measlesFetcher';
 import type { PandemicType } from '@/types/pandemic';
 
 // pollMs: only COVID is live; Ebola and West Nile are static files, loaded once per visit.
@@ -23,6 +24,12 @@ const SOURCES = {
   westnile: {
     global: () => westNileFetcher.fetchGlobalStats(),
     countries: () => westNileFetcher.fetchWestNileCountries(),
+    isFallback: () => false,
+    pollMs: 0,
+  },
+  measles: {
+    global: () => measlesFetcher.fetchGlobalStats(),
+    countries: () => measlesFetcher.fetchMeaslesCountries(),
     isFallback: () => false,
     pollMs: 0,
   },

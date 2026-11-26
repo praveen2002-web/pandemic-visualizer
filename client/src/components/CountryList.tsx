@@ -180,7 +180,7 @@ export const CountryList: React.FC = () => {
                 <Th label="Fatality %" col="fatalityRate" activeKey={sortKey} order={sortOrder} onSort={handleSort} />
               )}
 
-              {/* Severity bar column — no sort */}
+              {/* Severity bar column - no sort */}
               <th className="py-3.5 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-left w-32 hidden md:table-cell">
                 Severity
               </th>
@@ -242,7 +242,7 @@ export const CountryList: React.FC = () => {
                     {/* Deaths */}
                     <td className="py-3.5 px-4 text-right">
                       <span className="font-semibold text-red-400 tabular-nums">
-                        {formatNumber(loc.deaths ?? 0)}
+                        {loc.deaths !== undefined ? formatNumber(loc.deaths) : 'N/A'}
                       </span>
                     </td>
 
@@ -250,7 +250,7 @@ export const CountryList: React.FC = () => {
                     {hasRecovered && (
                       <td className="py-3.5 px-4 text-right">
                         <span className="font-semibold text-emerald-400 tabular-nums">
-                          {loc.recovered !== undefined ? formatNumber(loc.recovered) : '—'}
+                          {loc.recovered !== undefined ? formatNumber(loc.recovered) : '-'}
                         </span>
                       </td>
                     )}
@@ -259,7 +259,7 @@ export const CountryList: React.FC = () => {
                     {hasActive && (
                       <td className="py-3.5 px-4 text-right">
                         <span className="font-semibold text-amber-400 tabular-nums">
-                          {loc.active !== undefined ? formatNumber(loc.active) : '—'}
+                          {loc.active !== undefined ? formatNumber(loc.active) : '-'}
                         </span>
                       </td>
                     )}
@@ -281,7 +281,7 @@ export const CountryList: React.FC = () => {
                           >
                             {loc.fatalityRate.toFixed(1)}%
                           </span>
-                        ) : '—'}
+                        ) : '-'}
                       </td>
                     )}
 

@@ -149,6 +149,28 @@ export const pandemicConfigs: Record<PandemicType, PandemicConfig> = {
     defaultSort: 'cases',
     defaultSortDesc: true,
   },
+
+  measles: {
+    name: 'Measles',
+    shortName: 'Measles',
+    description: 'Measles - reported cases per country (WHO, via Our World in Data)',
+
+    availableMetrics: ['cases', 'deaths'],
+    defaultMetric: 'cases',
+
+    accentColor: '#A855F7', // purple-500
+    colorRamp: {
+      dark: '#581C87', // purple-900
+      light: '#D8B4FE', // purple-300
+    },
+
+    statsCards: ['totalCases', 'totalDeaths'],
+
+    chartTypes: ['yearly-trend'],
+
+    defaultSort: 'cases',
+    defaultSortDesc: true,
+  },
 };
 
 export function getPandemicConfig(pandemic: PandemicType): PandemicConfig {

@@ -17,11 +17,13 @@ const initialState: PandemicState = {
     covid: null,
     ebola: null,
     westnile: null,
+    measles: null,
   },
   countries: {
     covid: {},
     ebola: {},
     westnile: {},
+    measles: {},
   },
   selectedCountry: null,
   loading: false,
@@ -30,6 +32,7 @@ const initialState: PandemicState = {
     covid: null,
     ebola: null,
     westnile: null,
+    measles: null,
   },
 };
 

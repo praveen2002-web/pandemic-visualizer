@@ -150,6 +150,12 @@ class EbolaFetcher {
     return globalStats;
   }
 
+  /** Raw row for one country: notes, source and an optional yearly `timeline`. */
+  async fetchRecord(iso2: string) {
+    const rows: (EbolaJsonRow & import('./countryHistory').StaticRecord)[] = await this.fetchAndParseJson();
+    return rows.find(r => (r.countryInfo?.iso2 ?? COUNTRY_CODE_MAP[r.country]) === iso2);
+  }
+
   /** Expose file metadata so UI components can display source attribution */
   getFileMeta() {
     return FILE_META;

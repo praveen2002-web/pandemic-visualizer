@@ -168,6 +168,23 @@ export function normalizeVaccinations(
   return vaccinationByIso3;
 }
 
+/** Says whether each country's percentage is "fully vaccinated" or "at least one dose". */
+function vaccinationTypes(rows: OwidVaccinationCountry[]): Record<string, 'full' | 'partial'> {
+  const types: Record<string, 'full' | 'partial'> = {};
+  for (const country of rows) {
+    if (!country || typeof country.iso_code !== 'string' || !Array.isArray(country.data)) continue;
+    // same point normalizeVaccinations picks: latest date with either figure
+    const latest = country.data
+      .filter(p => p && typeof p.date === 'string' &&
+        (Number.isFinite(p.people_fully_vaccinated_per_hundred) || Number.isFinite(p.people_vaccinated_per_hundred)))
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    if (latest) {
+      types[country.iso_code.toUpperCase()] = latest.people_fully_vaccinated_per_hundred != null ? 'full' : 'partial';
+    }
+  }
+  return types;
+}
+
 function countryNameKey(name: string): string {
   const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
   const aliases: Record<string, string> = {
@@ -186,15 +203,24 @@ export function normalizeHistorical(
     Pick<PandemicCountryData, 'dates' | 'dailyCases' | 'dailyDeaths'>
   > = {};
 
+  // several province rows can share a country: add their running totals together first
+  const totals: Record<string, { cases: Record<string, number>; deaths: Record<string, number> }> = {};
   for (const row of rows) {
     if (!row || typeof row.country !== 'string' || !row.timeline) continue;
-    const dates = Object.keys(row.timeline.cases ?? row.timeline.deaths ?? {}).sort(
+    const total = (totals[countryNameKey(row.country)] ??= { cases: {}, deaths: {} });
+    for (const field of ['cases', 'deaths'] as const) {
+      for (const [date, value] of Object.entries(row.timeline[field] ?? {})) {
+        total[field][date] = (total[field][date] ?? 0) + value;
+      }
+    }
+  }
+
+  for (const [key, { cases, deaths }] of Object.entries(totals)) {
+    const dates = Object.keys(Object.keys(cases).length ? cases : deaths).sort(
       (a, b) => new Date(a).getTime() - new Date(b).getTime()
     );
-    const cases = row.timeline.cases ?? {};
-    const deaths = row.timeline.deaths ?? {};
 
-    result[countryNameKey(row.country)] = {
+    result[key] = {
       dates,
       dailyCases: dates.map((date, index) =>
         index === 0 ? 0 : Math.max(0, (cases[date] ?? 0) - (cases[dates[index - 1]] ?? 0))
@@ -312,6 +338,9 @@ class DataFetcher {
       const vaccinationByIso3 = normalizeVaccinations(
         Array.isArray(rawVaccinations) ? rawVaccinations : []
       );
+      const vaccinationTypeByIso3 = vaccinationTypes(
+        Array.isArray(rawVaccinations) ? rawVaccinations : []
+      );
       const historicalByCountry = normalizeHistorical(
         Array.isArray(rawHistorical) ? rawHistorical : []
       );
@@ -325,7 +354,9 @@ class DataFetcher {
         const historical = historicalByCountry[countryNameKey(country.country)];
         result[normalized.countryCode] = {
           ...normalized,
-          ...(vaccinationPercentage !== undefined ? { vaccinationPercentage } : {}),
+          ...(vaccinationPercentage !== undefined
+            ? { vaccinationPercentage, vaccinationType: iso3 ? vaccinationTypeByIso3[iso3] : undefined }
+            : {}),
           ...(historical ? {
             dates: historical.dates,
             dailyCases: historical.dailyCases,
@@ -335,9 +366,9 @@ class DataFetcher {
       }
       this.fallbackStatus.countries = false;
     } else {
-      console.warn('[dataFetcher] API failed — using fallback COVID data');
+      console.warn('[dataFetcher] API failed - using fallback COVID data');
       result = Object.fromEntries(
-        Object.entries(FALLBACK_COUNTRIES).map(([k, c]) => [k, { ...c, active: c.cases - c.deaths - (c.recovered ?? 0) }])
+        Object.entries(FALLBACK_COUNTRIES).map(([k, c]) => [k, { ...c, active: c.cases - (c.deaths ?? 0) - (c.recovered ?? 0) }])
       );
       this.fallbackStatus.countries = true;
     }

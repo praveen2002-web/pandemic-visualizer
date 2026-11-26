@@ -137,6 +137,12 @@ class WestNileFetcher {
     return globalStats;
   }
 
+  /** Raw row for one country: notes, source and an optional yearly `timeline`. */
+  async fetchRecord(iso2: string) {
+    const rows: (WestNileJsonRow & import('./countryHistory').StaticRecord)[] = await this.fetchAndParseRows();
+    return rows.find(r => r.countryInfo?.iso2 === iso2);
+  }
+
   /** Expose file metadata so UI components can display source attribution */
   getFileMeta() {
     return FILE_META;

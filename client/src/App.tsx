@@ -56,7 +56,7 @@ function App() {
                   color: "#cbd5e1"
                 }}
                 buttonStyle={{
-                  background: "#ef4444",
+                  background: "#005A9C",
                   color: "#ffffff",
                   fontSize: "13px",
                   fontWeight: "600",

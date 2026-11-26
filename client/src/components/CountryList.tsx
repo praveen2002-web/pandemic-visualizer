@@ -180,7 +180,7 @@ export const CountryList: React.FC = () => {
                 <Th label="Fatality %" col="fatalityRate" activeKey={sortKey} order={sortOrder} onSort={handleSort} />
               )}
 
-              {/* Severity bar column — no sort */}
+              {/* Severity bar column - no sort */}
               <th className="py-3.5 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 text-left w-32 hidden md:table-cell">
                 Severity
               </th>
@@ -204,7 +204,18 @@ export const CountryList: React.FC = () => {
                 return (
                   <tr
                     key={loc.countryCode}
-                    onClick={() => dispatch(setSelectedCountry(loc.countryCode))}
+                    onClick={e => {
+                      e.currentTarget.focus(); // so focus can return here when the dashboard closes
+                      dispatch(setSelectedCountry(loc.countryCode));
+                    }}
+                    tabIndex={0}
+                    aria-label={`Open dashboard for ${loc.country}`}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        dispatch(setSelectedCountry(loc.countryCode));
+                      }
+                    }}
                     className="group border-b border-slate-800/60 cursor-pointer transition-all duration-150
                                hover:bg-slate-800/50 hover:border-slate-700/60"
                   >
@@ -242,7 +253,7 @@ export const CountryList: React.FC = () => {
                     {/* Deaths */}
                     <td className="py-3.5 px-4 text-right">
                       <span className="font-semibold text-red-400 tabular-nums">
-                        {formatNumber(loc.deaths ?? 0)}
+                        {loc.deaths !== undefined ? formatNumber(loc.deaths) : 'N/A'}
                       </span>
                     </td>
 
@@ -250,7 +261,7 @@ export const CountryList: React.FC = () => {
                     {hasRecovered && (
                       <td className="py-3.5 px-4 text-right">
                         <span className="font-semibold text-emerald-400 tabular-nums">
-                          {loc.recovered !== undefined ? formatNumber(loc.recovered) : '—'}
+                          {loc.recovered !== undefined ? formatNumber(loc.recovered) : '-'}
                         </span>
                       </td>
                     )}
@@ -259,7 +270,7 @@ export const CountryList: React.FC = () => {
                     {hasActive && (
                       <td className="py-3.5 px-4 text-right">
                         <span className="font-semibold text-amber-400 tabular-nums">
-                          {loc.active !== undefined ? formatNumber(loc.active) : '—'}
+                          {loc.active !== undefined ? formatNumber(loc.active) : '-'}
                         </span>
                       </td>
                     )}
@@ -281,7 +292,7 @@ export const CountryList: React.FC = () => {
                           >
                             {loc.fatalityRate.toFixed(1)}%
                           </span>
-                        ) : '—'}
+                        ) : '-'}
                       </td>
                     )}
 
